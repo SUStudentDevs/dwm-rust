@@ -2,6 +2,7 @@
 name = "dwm-rust"
 version = "0.1.0"
 dependencies = [
+ "libc 0.2.40 (registry+https://github.com/rust-lang/crates.io-index)",
  "x11 2.17.5 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 

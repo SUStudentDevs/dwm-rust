@@ -1,0 +1,18 @@
+[tasks.install]
+description = "Installs dwm-rust in /usr/bin. Run with sudo"
+script = [
+    "cargo build --release",
+    "echo Installing in /usr/local/bin",
+	"sudo mkdir -p /usr/local/bin",
+	"sudo cp -f target/release/dwm-rust /usr/local/bin",
+	"sudo chmod 755 /usr/local/bin/dwm-rust"
+]
+
+[tasks.xnest]
+description = "Tests the debug build inside xnest"
+script = [
+	"cargo build",
+	"Xnest :2 -name 'dwm-rust' -ac &",
+	"export DISPLAY=:2",
+	"exec target/debug/dwm-rust"
+]
