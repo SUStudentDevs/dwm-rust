@@ -7,29 +7,31 @@ use std::ffi::CString;
 
 use x11::xlib;
 use x11::xft;
+use x11::xrender;
 
 /// Stores a color
-struct Clr {
+pub struct Clr {
     pix: u64,
     rgb: xft::XftColor
 }
 
 impl Clr {
-    fn new(dpy: *mut xlib::Display, screen: i32, clrname: &str) -> Clr {
-        let rgb: *mut xft::XftColor = ptr::null_mut();
-        if unsafe { !xft::XftColorAllocName(dpy, 
+    pub fn new(dpy: &mut xlib::Display, screen: i32, clrname: &str) -> Clr {
+        let mut rgb = xft::XftColor {
+            pixel: 0,
+            color: xrender::XRenderColor { red: 0, green: 0, blue: 0, alpha: 0 }
+        };
+        if unsafe { xft::XftColorAllocName(dpy,  //Y'a un pb ici
                                    xlib::XDefaultVisual(dpy, screen),
                                    xlib::XDefaultColormap(dpy, screen),
                                    CString::new(clrname).unwrap().as_ptr(),
-                                   rgb) == 0} {
+                                   &mut rgb) } == 0 {
             eprintln!("Error, cannot allocate color {:?}\n", clrname);
             process::exit(1)
         }
-        unsafe {
-            Clr {
-                pix: (*rgb).pixel,
-                rgb: *rgb
-            }
+        Clr {
+            pix: rgb.pixel,
+            rgb: rgb
         }
     }
 }
@@ -42,7 +44,7 @@ pub struct ClrScheme {
 }
 
 impl ClrScheme {
-    fn new(fg: Clr, bg: Clr, border: Clr) -> ClrScheme {
+    pub fn new(fg: Clr, bg: Clr, border: Clr) -> ClrScheme {
         ClrScheme {
             fg,
             bg,
@@ -51,18 +53,31 @@ impl ClrScheme {
     }
 }
 
+/// Stores a cursor
+pub struct Cur {
+    pub cursor: xlib::Cursor
+}
+
+impl Cur {
+    pub fn new(drw: &mut Drw, shape: u32) -> Cur {
+        Cur {
+            cursor: unsafe { xlib::XCreateFontCursor(drw.dpy, shape) }
+        } 
+    }
+}
+
 /// Stores a font
-struct Fnt {
+pub struct Fnt {
     dpy: *mut xlib::Display,
     ascent: i32,
     descent: i32,
-    h: i32,
+    pub h: u32,
     xfont: *mut xft::XftFont,
     pattern: *mut xft::FcPattern 
 }
 
 impl Fnt {
-    fn new(drw: *const Drw, fontname: Option<&str>, fontpattern: Option<xft::FcPattern>) -> Option<Fnt> {
+    fn new(drw: &mut Drw, fontname: Option<&str>, fontpattern: Option<xft::FcPattern>) -> Option<Fnt> {
         if let Some(ftn) = fontname {
             let ftn_c = CString::new(ftn).unwrap().as_ptr();
             let xfont = unsafe { xft::XftFontOpenName((*drw).dpy, (*drw).screen, ftn_c) };
@@ -80,7 +95,7 @@ impl Fnt {
                             dpy: (*drw).dpy,
                             ascent: (*xfont).ascent,
                             descent: (*xfont).descent,
-                            h: (*xfont).ascent + (*xfont).descent,
+                            h: ((*xfont).ascent + (*xfont).descent) as u32,
                             xfont: xfont,
                             pattern: pattern
                         }) 
@@ -98,7 +113,7 @@ impl Fnt {
                         dpy: (*drw).dpy,
                         ascent: (*xfont).ascent,
                         descent: (*xfont).descent,
-                        h: (*xfont).ascent + (*xfont).descent,
+                        h: ((*xfont).ascent + (*xfont).descent) as u32,
                         xfont: xfont,
                         pattern: &mut ftp as *mut xft::FcPattern
                     })
@@ -119,17 +134,17 @@ pub struct Drw {
     w: u32,
     h: u32,
     dpy: *mut xlib::Display,
-    screen: i32,
+    pub screen: i32,
     root: xlib::Window,
     drawable: xlib::Drawable,
     gc: xlib::GC,
     scheme: Option<ClrScheme>,
     pub fontcount: usize,
-    fonts: Vec<Fnt>
+    pub fonts: Vec<Fnt>
 }
 
 impl Drw {
-    pub fn new(dpy: *mut xlib::Display, screen: i32, root: xlib::Window, w: u32, h:u32) -> Drw {
+    pub fn new(dpy: &mut xlib::Display, screen: i32, root: xlib::Window, w: u32, h:u32) -> Drw {
         let drw = Drw {
             dpy,
             screen,
@@ -203,7 +218,7 @@ impl Drw {
                 }
 
                 let curfont = &self.fonts[0];
-                while true {
+                loop {
                     let utf8strlen = 0;
                     let utf8str = text;
                     // TODO : finir ça
