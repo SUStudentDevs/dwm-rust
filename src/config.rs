@@ -28,3 +28,5 @@ pub const layouts: [Layout; 4] = [
     Layout { symbol: "><>", arrange: noarrange },
     Layout { symbol: "HHH", arrange: gridarrange }
 ];
+
+pub const tags: [&str; 9] = ["1", "2", "3", "4", "5", "6", "7", "8", "9"];
