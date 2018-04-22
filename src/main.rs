@@ -24,8 +24,8 @@ const CURNORMAL: usize = 0; const CURRESIZE: usize = 1; const CURMOVE: usize = 2
 const SCHEMENORM: usize = 0; const SCHEMESEL: usize = 1;
 
 // Fn instead of C macros
-fn textw(s: &str, drw: &mut drw::Drw) -> i32 {
-    drw.text(0, 0, 0, 0, s, false) + drw.fonts[0].h as i32
+fn textw(s: &str, drw: &mut drw::Drw) -> u32 {
+    drw.text(0, 0, 0, 0, s, false) as u32 + drw.fonts[0].h
 }
 
 enum Arg {
@@ -131,6 +131,12 @@ impl<'a> Monitor<'a> {
     }
 }
 
+impl<'a> PartialEq for Monitor<'a> {
+    fn eq(&self, other: &Monitor<'a>) -> bool {
+        self.num == other.num
+    }
+}
+
 struct WM<'a> {
     dpy: &'a mut xlib::Display,
     drw: drw::Drw,
@@ -144,7 +150,8 @@ struct WM<'a> {
     mons: LinkedList<Monitor<'a>>,
     selmon: *mut Monitor<'a>,
     sw: u32, sh: u32,
-    bh: u32
+    bh: u32,
+    stext: String
 }
 
 impl<'a> WM<'a> {
@@ -163,6 +170,7 @@ impl<'a> WM<'a> {
             selmon: ptr::null_mut(),
             sw, sh,
             bh: 0, 
+            stext: String::from("dwm-rust")
         }; 
         wm.bh = wm.drw.fonts[0].h + 2; 
         unsafe {
@@ -265,7 +273,7 @@ impl<'a> WM<'a> {
 
     fn updatestatus(&mut self) {
         // if(...) TODO
-        drawbar(self.selmon, &mut (self.drw), self.bh, &mut self.scheme);
+        drawbar(self.selmon, &mut (self.drw), self.bh, &mut self.scheme, self.selmon, &self.stext[..]);
     }
 }
 
@@ -382,34 +390,75 @@ fn updatebarpos(m: &mut Monitor, bh: u32) {
 
 fn wintomon<'a>(wm: &'a mut WM<'a>, w: xlib::Window) -> &'a mut Monitor<'a> {
     // TODO
-    /*if w == wm.root {
+    if w == wm.root {
         // TODO recttomon
 
-    }*/
+    }
     wm.mons.front_mut().unwrap()
 }
 
-fn drawbar(m: *mut Monitor, drw: &mut drw::Drw, bh: u32, scheme: &mut Vec<drw::ClrScheme>) {
-    let dx = (drw.fonts[0].ascent + drw.fonts[0].descent + 2) / 4;
+fn drawbar<'a>(m: *mut Monitor<'a>, drw: &mut drw::Drw, bh: u32, scheme: &mut Vec<drw::ClrScheme>, selmon: *mut Monitor<'a>, stext: &str) {
+    let dx: u32 = ((drw.fonts[0].ascent + drw.fonts[0].descent + 2) / 4) as u32;
     let mut occ = 0;
     let mut urg = 0;
     unsafe {
         for mut c in (*m).clients.iter() {
             occ = occ|c.tags;
             if c.isurgent {
-                urg = urg|c.tags;
+                urg = urg|c.tags
             }
         }
-        let x = 0;
+
+        // Draw list of monitors, with their tags
+        let mut x = 0;
         for i in 0..config::tags.len() {
-            let w = textw(config::tags[i], drw);
+            let w: u32 = textw(config::tags[i], drw);
             if (*m).tagset[(*m).seltags as usize] & 1 << i != 0 {
                 drw.setscheme(&mut scheme[SCHEMESEL]);
-                drw.text(x, 1, w as u32, bh, config::tags[i], urg & 1 << i != 0);
-                drw.rect(x + 1, 1, dx as u32, dx as u32, true, true, true); // TODO pas fini (valeurs booleenes)
+            } else {
+                drw.setscheme(&mut scheme[SCHEMENORM]);
+            }
+            drw.text(x, 1, w, bh, config::tags[i], urg & (1 << i) != 0);
+            if let Some(sel) = (*selmon).sel {
+                drw.rect(x + 1, 1, dx, dx, (*m).eq(&(*selmon)) && sel.tags & (1 << i) != 0, occ & (1 << i) != 0, urg & (1 << i) != 0);
+            } else {
+                drw.rect(x + 1, 1, dx, dx, false, occ & (1 << i) != 0, urg & (1 << i) != 0);
+            }
+            x += w as i32;
+        }
+        let blw = textw((*m).ltsymbol, drw);
+        let mut w = blw;
+        drw.setscheme(&mut scheme[SCHEMENORM]);
+        drw.text(x, 0, w, bh, (*m).ltsymbol, false);
+        x += w as i32;
+        let xx = x;
+        if m == selmon { // Status is only drawn on selected monitor
+            w = textw(stext, drw);
+            x = (*m).ww as i32 - w as i32;
+            if x < xx {
+                x = xx;
+                w = (*m).ww - xx as u32;
+            }
+            drw.text(x, 0, w, bh, stext, false);
+        } else {
+            x = (*m).ww as i32;
+        }
+        w = (x - xx) as u32;
+        if w > bh {
+            x = xx;
+            if let Some(sel) = (*m).sel {
+                if m == selmon {
+                    drw.setscheme(&mut scheme[SCHEMESEL]);
+                } else {
+                    drw.setscheme(&mut scheme[SCHEMENORM]);
+                }
+                drw.text(x, 0, w, bh, &sel.name[..], false);
+                drw.rect(x + 1, 1, dx, dx, sel.isfixed, sel.isfloating, false);
+            } else {
+                drw.setscheme(&mut scheme[SCHEMENORM]);
+                drw.rect(x, 0, w, bh, true, false, true);
             }
         }
-        // TODO
         drw.map((*m).barwin, 0, 0, (*m).ww, bh);
     }
 }
@@ -419,9 +468,7 @@ fn run(wm: &mut WM) {
     let ev = &mut xlib::XEvent { any: xlib::XAnyEvent { type_: 0, serial: 0, send_event: 0, display: wm.dpy, window: wm.root } }; // Dummy value
     unsafe {
         xlib::XSync(wm.dpy, 0); // Ca crashe la
-        println!("apres le XSync");
         while wm.running && xlib::XNextEvent(wm.dpy, ev)==0 {
-            println!("Event : {:?}", ev); // TEMPORARY
             handleevent(wm.dpy, ev);
         }
     }

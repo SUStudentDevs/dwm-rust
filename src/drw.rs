@@ -120,7 +120,7 @@ impl Fnt {
                 }
             }
         } else {
-            println!("no font specified\n");
+            eprintln!("no font specified\n");
             process::exit(1);
         }
     }
@@ -128,6 +128,17 @@ impl Fnt {
     fn free(&self) {
         unsafe { xft::XftFontClose(self.dpy, self.xfont) };
     }
+
+    /*fn getexts(&mut self, text: Vec<u8>, len: usize, tex: &xft::Extnts) {
+
+    }*/
+}
+
+impl PartialEq for Fnt {
+    fn eq(&self, other: &Fnt) -> bool {
+        self.xfont == other.xfont
+    }
+
 }
 
 pub struct Drw {
@@ -184,7 +195,7 @@ impl Drw {
     }
 
     // Draws a rectangle.
-    pub fn rect(&mut self, x: i32, y: i32, w: u32, h: u32, filled: bool, _: bool, invert: bool) {
+    pub fn rect(&mut self, x: i32, y: i32, w: u32, h: u32, filled: bool, empty: bool, invert: bool) {
         let s = self.scheme;
         if !s.is_null() {
             if invert {
@@ -195,39 +206,60 @@ impl Drw {
 
             if filled {
                 unsafe { xlib::XFillRectangle(self.dpy, self.drawable, self.gc, x, y, w + 1, h + 1) };
-            } else {
-                unsafe { xlib::XFillRectangle(self.dpy, self.drawable, self.gc, x, y, w, h) };
+            } else if empty {
+                unsafe { xlib::XDrawRectangle(self.dpy, self.drawable, self.gc, x, y, w, h) };
             }
         }
     }
 
-    // Draws text.
+    // Draws text. TODO c'est pas encore fini
     pub fn text(&mut self, x: i32, y: i32, mut w:u32, h:u32, text: &str, invert: bool) -> i32 {
         let s = self.scheme;
+        let mut d = ptr::null_mut();
         if !s.is_null() {
             if self.fontcount > 0 {
-                let render = x;   
-                if !(x>0 || y>0 || w>0 || h>0) {
+                let render = x!= 0 || y != 0 || w != 0 || h != 0;   
+                if !render {
                     w = !w;
                 } else {
                     if invert {
-                        unsafe { xlib::XSetForeground(self.dpy, self.gc, (*s).bg.pix) };
-                    } else {
                         unsafe { xlib::XSetForeground(self.dpy, self.gc, (*s).fg.pix) };
+                    } else {
+                        unsafe { xlib::XSetForeground(self.dpy, self.gc, (*s).bg.pix) };
                     }
                     unsafe { xlib::XFillRectangle(self.dpy, self.drawable, self.gc, x, y, w, h) };
-                    unsafe { xlib::XDefaultVisual(self.dpy, self.screen) };
+                    d = unsafe { xft:: XftDrawCreate(self.dpy, self.drawable, xlib::XDefaultVisual(self.dpy, self.screen), xlib::XDefaultColormap(self.dpy, self.screen)) };
                 }
 
                 let curfont = &self.fonts[0];
-                /*loop {
-                    let utf8strlen = 0;
-                    let utf8str = text;
-                    // TODO : finir ça
-                }*/
+                let nextfont = &self.fonts[0];
+                let mut charexists = false;
+                loop {
+                    let utf8str = text.as_bytes();
+                    
+                    if render {
+                        let th = curfont.ascent + curfont.descent;
+                        let ty = y + (h / 2) as i32 - (th / 2) + curfont.ascent;
+                        let tx = x + (h / 2) as i32;
+                        if invert {
+                            unsafe { xft::XftDrawStringUtf8(d, &(*s).bg.rgb, curfont.xfont, tx, ty, utf8str.as_ptr(), utf8str.len() as i32) };
+                        } else {
+                            unsafe { xft::XftDrawStringUtf8(d, &(*s).fg.rgb, curfont.xfont, tx, ty, utf8str.as_ptr(), utf8str.len() as i32) };
+                        } 
+                    }
+                    
+                    if !charexists || nextfont != curfont {
+                        break;
+                    } else {
+                        charexists = false;
+                    }
+                }
             }
         }
-        0
+        if !d.is_null() {
+            unsafe { xft::XftDrawDestroy(d) };
+        }
+        x
     }
     
     // Draws from a window.
