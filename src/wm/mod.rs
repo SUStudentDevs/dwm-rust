@@ -1,11 +1,11 @@
 extern crate x11;
 
-use std::ptr;
 use std::ffi::CString;
 use std::collections::LinkedList;
 
 use x11::xlib;
 use x11::xinerama;
+use x11::keysym;
 
 pub mod monitor;
 pub mod client;
@@ -27,11 +27,12 @@ pub struct WM<'a> {
     pub netatom: Vec<xlib::Atom>,
     pub cursor: Vec<Cur>,
     pub scheme: Vec<ClrScheme>,
-    pub mons: LinkedList<Monitor<'a>>,
-    pub selmon: *mut Monitor<'a>,
+    pub mons: Vec<Monitor<'a>>,
+    pub selmonindex: usize,
     pub sw: u32, sh: u32,
     pub bh: u32,
-    pub stext: String
+    pub stext: String,
+    pub numlockmask: u32
 }
 
 impl<'a> WM<'a> {
@@ -47,11 +48,12 @@ impl<'a> WM<'a> {
             netatom: Vec::new(),
             cursor: Vec::new(),
             scheme: Vec::new(),
-            mons: LinkedList::new(), 
-            selmon: ptr::null_mut(),
+            mons: Vec::new(), 
+            selmonindex: 0,
             sw, sh,
             bh: 0, 
-            stext: String::from("dwm-rust")
+            stext: String::from("dwm-rust"),
+            numlockmask: 0
         }; 
         wm.bh = wm.drw.fonts[0].h + 2; 
         unsafe {
@@ -92,23 +94,20 @@ impl<'a> WM<'a> {
             // TODO
         } else {
             if self.mons.is_empty() {
-                self.mons.push_front(Monitor::new());
+                self.mons.push(Monitor::new());
             } 
-            if let Some(mut m) = self.mons.front_mut() {
+            let m = &mut self.mons[0];
                 if m.ww != self.sw {
                     dirty = true;
                     m.mw = self.sw; m.ww = self.sw;
                     m.mh = self.sh; m.wh = self.sh;
                     m.updatebarpos(self.bh);
                 }
-            }
         }
         if dirty {
             // TODO
-            if let Some(mon) = self.mons.front_mut() {
-                self.selmon = mon; // TODO
-            }
-            //wm.selmon = Some(wintomon(wm, wm.root));
+            self.selmonindex = 0;
+            //self.selmon = Some(wintomon(wm, wm.root));
         }
         dirty
     }
@@ -150,10 +149,41 @@ impl<'a> WM<'a> {
         }
     }
 
-    // Updates the status text
+    /// Updates the status text
     pub fn updatestatus(&mut self) {
         // if(...) TODO
-        unsafe { &(*self.selmon).drawbar(&mut (self.drw), self.bh, &mut self.scheme, &mut (*self.selmon), &self.stext[..]) };
+        let selmon = &mut self.mons[self.selmonindex];
+        selmon.drawbar(&mut (self.drw), self.bh, &mut self.scheme, selmon, &self.stext[..]);
+    }
+
+    /// Grab keys for the window manager
+    pub fn grabkeys(&mut self) {
+        self.updatenumlockmask();
+        let modifiers = vec![0, xlib::LockMask, self.numlockmask, self.numlockmask|xlib::LockMask];
+
+        unsafe { xlib::XUngrabKey(self.dpy, xlib::AnyKey, xlib::AnyModifier, self.root) };
+        for i in 0..config::keys.len() {
+            let code = unsafe { xlib::XKeysymToKeycode(self.dpy, config::keys[i].keysym) };
+            if code != 0 {
+                for j in 0..modifiers.len() {
+                    unsafe { xlib::XGrabKey(self.dpy, code as i32, config::keys[i].modif | modifiers[j], self.root, 1, xlib::GrabModeAsync, xlib::GrabModeAsync) };
+                }
+            }
+        }
+    }
+
+    fn updatenumlockmask(&mut self) {
+        let modmap = unsafe { (*xlib::XGetModifierMapping(self.dpy)) };
+        self.numlockmask = 0;
+        let modifiermap = unsafe { Vec::from_raw_parts(modmap.modifiermap, 8 * modmap.max_keypermod as usize, 8 * modmap.max_keypermod as usize) };
+        for i in 0..8 {
+            for j in 0..modmap.max_keypermod {
+                if modifiermap[(i * modmap.max_keypermod + j) as usize] == unsafe { xlib::XKeysymToKeycode(self.dpy, keysym::XK_Num_Lock as u64) } {
+                    self.numlockmask = 1 << i;
+                }
+            }
+        }
+        // unsafe { xlib::XFreeModifiermap(&mut modmap); } Ca cause un crash
     }
 }
 

@@ -33,7 +33,6 @@ pub struct Drw {
     drawable: xlib::Drawable,
     gc: xlib::GC,
     scheme: *mut ClrScheme,
-    pub fontcount: usize,
     pub fonts: Vec<Fnt>
 }
 
@@ -47,7 +46,6 @@ impl Drw {
             h,
             drawable: unsafe { xlib::XCreatePixmap(dpy, root, w, h, xlib::XDefaultDepth(dpy, screen) as u32) },
             gc: unsafe { xlib::XCreateGC(dpy, root, 0, ptr::null_mut()) },
-            fontcount: 0,
             fonts: Vec::new(),
             scheme: ptr::null_mut()
         };
@@ -72,7 +70,6 @@ impl Drw {
         for f in fontnames {
             if let Some(font) = Fnt::new(self, Some(f), None) {
                 self.fonts.push(font);
-                self.fontcount = self.fontcount + 1;
             }
         }
     }
@@ -100,7 +97,7 @@ impl Drw {
         let s = self.scheme;
         let mut d = ptr::null_mut();
         if !s.is_null() {
-            if self.fontcount > 0 {
+            if self.fonts.len() > 0 {
                 let render = x!= 0 || y != 0 || w != 0 || h != 0;   
                 if !render {
                     w = !w;

@@ -78,70 +78,68 @@ impl<'a> Monitor<'a> {
     }
 
     // Draws the statusbar for this monitor
-    pub fn drawbar(&mut self, drw: &mut Drw, bh: u32, scheme: &mut Vec<ClrScheme>, selmon: &mut Monitor<'a>, stext: &str) {
+    pub fn drawbar(&self, drw: &mut Drw, bh: u32, scheme: &mut Vec<ClrScheme>, selmon: &Monitor<'a>, stext: &str) {
         let dx: u32 = ((drw.fonts[0].ascent + drw.fonts[0].descent + 2) / 4) as u32;
         let mut occ = 0;
         let mut urg = 0;
-        unsafe {
-            for mut c in self.clients.iter() {
-                occ = occ|c.tags;
-                if c.isurgent {
-                    urg = urg|c.tags
-                }
+        for mut c in self.clients.iter() {
+            occ = occ|c.tags;
+            if c.isurgent {
+                urg = urg|c.tags
             }
+        }
 
-            // Draw list of monitors, with their tags
-            let mut x = 0;
-            for i in 0..config::tags.len() {
-                let w: u32 = textw(config::tags[i], drw);
-                if self.tagset[self.seltags as usize] & 1 << i != 0 {
+        // Draw list of monitors, with their tags
+        let mut x = 0;
+        for i in 0..config::tags.len() {
+            let w = textw(config::tags[i], drw);
+            if self.tagset[self.seltags as usize] & 1 << i != 0 { // crashes because of self. why ?
+                drw.setscheme(&mut scheme[SCHEMESEL]);
+            } else {
+                drw.setscheme(&mut scheme[SCHEMENORM]);
+            }
+            drw.text(x, 1, w, bh, config::tags[i], urg & (1 << i) != 0);
+            if let Some(sel) = selmon.sel {
+                drw.rect(x + 1, 1, dx, dx, self == selmon && sel.tags & (1 << i) != 0, occ & (1 << i) != 0, urg & (1 << i) != 0);
+            } else {
+                drw.rect(x + 1, 1, dx, dx, false, occ & (1 << i) != 0, urg & (1 << i) != 0);
+            }
+            x += w as i32;
+        }
+        let blw = textw(self.ltsymbol, drw);
+        let mut w = blw;
+        drw.setscheme(&mut scheme[SCHEMENORM]);
+        drw.text(x, 0, w, bh, self.ltsymbol, false);
+        x += w as i32;
+        let xx = x;
+        if self == selmon { // Status is only drawn on selected monitor
+            w = textw(stext, drw);
+            x = self.ww as i32 - w as i32;
+            if x < xx {
+                x = xx;
+                w = self.ww - xx as u32;
+            }
+            drw.text(x, 0, w, bh, stext, false);
+        } else {
+            x = self.ww as i32;
+        }
+        w = (x - xx) as u32;
+        if w > bh {
+            x = xx;
+            if let Some(sel) = self.sel {
+                if self == selmon {
                     drw.setscheme(&mut scheme[SCHEMESEL]);
                 } else {
                     drw.setscheme(&mut scheme[SCHEMENORM]);
                 }
-                drw.text(x, 1, w, bh, config::tags[i], urg & (1 << i) != 0);
-                if let Some(sel) = (*selmon).sel {
-                    drw.rect(x + 1, 1, dx, dx, self == selmon && sel.tags & (1 << i) != 0, occ & (1 << i) != 0, urg & (1 << i) != 0);
-                } else {
-                    drw.rect(x + 1, 1, dx, dx, false, occ & (1 << i) != 0, urg & (1 << i) != 0);
-                }
-                x += w as i32;
-            }
-            let blw = textw(self.ltsymbol, drw);
-            let mut w = blw;
-            drw.setscheme(&mut scheme[SCHEMENORM]);
-            drw.text(x, 0, w, bh, self.ltsymbol, false);
-            x += w as i32;
-            let xx = x;
-            if self == selmon { // Status is only drawn on selected monitor
-                w = textw(stext, drw);
-                x = self.ww as i32 - w as i32;
-                if x < xx {
-                    x = xx;
-                    w = self.ww - xx as u32;
-                }
-                drw.text(x, 0, w, bh, stext, false);
+                drw.text(x, 0, w, bh, &sel.name[..], false);
+                drw.rect(x + 1, 1, dx, dx, sel.isfixed, sel.isfloating, false);
             } else {
-                x = self.ww as i32;
+                drw.setscheme(&mut scheme[SCHEMENORM]);
+                drw.rect(x, 0, w, bh, true, false, true);
             }
-            w = (x - xx) as u32;
-            if w > bh {
-                x = xx;
-                if let Some(sel) = self.sel {
-                    if self == selmon {
-                        drw.setscheme(&mut scheme[SCHEMESEL]);
-                    } else {
-                        drw.setscheme(&mut scheme[SCHEMENORM]);
-                    }
-                    drw.text(x, 0, w, bh, &sel.name[..], false);
-                    drw.rect(x + 1, 1, dx, dx, sel.isfixed, sel.isfloating, false);
-                } else {
-                    drw.setscheme(&mut scheme[SCHEMENORM]);
-                    drw.rect(x, 0, w, bh, true, false, true);
-                }
-            }
-            drw.map(self.barwin, 0, 0, self.ww, bh);
         }
+        drw.map(self.barwin, 0, 0, self.ww, bh);
     }
 
     /// Update position of the statusbar for this monitor

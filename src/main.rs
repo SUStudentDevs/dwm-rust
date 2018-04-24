@@ -31,18 +31,29 @@ fn textw(s: &str, drw: &mut Drw) -> u32 {
     drw.text(0, 0, 0, 0, s, false) as u32 + drw.fonts[0].h
 }
 
-enum Arg {
-    Int(i32),
-    UnsignedInt(u32),
-    Float(f32),
+fn cleanmask(mask: u32) -> u32 {
+    mask
+}
+
+union Arg {
+    i: i32,
+    u: u32,
+    f: f32,
     // TODO pointer
 }
 
-struct Button {
+pub struct Key {
+    modif: u32,
+    keysym: xlib::KeySym,
+    func: fn (&Arg, &mut WM),
+    arg: Arg
+}
+
+pub struct Button {
     click: u32,
     mask: u32,
     button: u32,
-    func: fn (*const Arg),
+    func: fn (Arg, &mut WM),
     arg: Arg
 }
 
@@ -72,6 +83,8 @@ fn main() {
         checkotherwm(dpy);
         let mut wm = setup(dpy);
         run(&mut wm); 
+        cleanup(&mut wm);
+        unsafe { xlib::XCloseDisplay(wm.dpy) };
     } else {
         println!("dwm-rust: can't open display"); 
         process::exit(1); 
@@ -80,7 +93,7 @@ fn main() {
 
 /// Prints an X error on start of the wm and exits the program.
 extern "C" fn xerrorstart(_dpy: *mut xlib::Display, _ee: *mut xlib::XErrorEvent) -> i32 {
-    println!("dwm: another window manager is already running\n");
+    println!("dwm-rust: another window manager is already running\n");
     process::exit(1);
 }
 
@@ -115,7 +128,7 @@ fn setup(dpy: &mut xlib::Display) -> WM {
     let mut drw = Drw::new(dpy, screen, root, sw, sh);
 
     drw.load_fonts(config::fonts.to_vec());
-    if drw.fontcount<1 {
+    if drw.fonts.len()<1 {
         eprintln!("no fonts could be loaded.\n");
         process::exit(1);
     }
@@ -145,7 +158,7 @@ fn setup(dpy: &mut xlib::Display) -> WM {
             cursor: wm.cursor[CURNORMAL].cursor
         });
     }
-    // grabkeys(); TODO
+    wm.grabkeys();
     // focus(None); TODO
     wm
 }
@@ -155,25 +168,26 @@ fn wintomon<'a>(wm: &'a mut WM<'a>, w: xlib::Window) -> &'a mut Monitor<'a> {
     if w == wm.root {
         // TODO recttomon
     }
-    wm.mons.front_mut().unwrap()
+    &mut wm.mons[0]
 }
 
 /// Main loop
 fn run(wm: &mut WM) {
     let ev = &mut xlib::XEvent { any: xlib::XAnyEvent { type_: 0, serial: 0, send_event: 0, display: wm.dpy, window: wm.root } }; // Dummy value
     unsafe {
-        xlib::XSync(wm.dpy, 0); // Ca crashe la
+        xlib::XSync(wm.dpy, 0);
         while wm.running && xlib::XNextEvent(wm.dpy, ev)==0 {
-            handleevent(wm.dpy, ev);
+            handleevent(wm, ev);
         }
     }
 }
 
 /// Handle an event
-fn handleevent(dpy: &mut xlib::Display, ev: *mut xlib::XEvent) {
+fn handleevent(wm: &mut WM, ev: &xlib::XEvent) {
     unsafe {
-        match (*ev).type_ {
-            xlib::ButtonPress => buttonpress(dpy),
+        match ev.type_ {
+            xlib::ButtonPress => buttonpress(wm, ev),
+            xlib::KeyPress => keypress(wm, ev),
             // TODO : les autres handlers
             _ => ()
         }
@@ -181,13 +195,29 @@ fn handleevent(dpy: &mut xlib::Display, ev: *mut xlib::XEvent) {
 }
 
 /// Handle a button press
-fn buttonpress(dpy: &mut xlib::Display) {
+fn buttonpress(wm: &mut WM, e: &xlib::XEvent) {
+    let arg = Arg {i: 0};
+    let ev = unsafe { e.button };
+    // click = CLKROOTWIN;
+    // let m = wintomon(ev.window);
     // TODO
-    println!("boutton"); // TEMPORARY
+}
+
+/// Handle a key press
+fn keypress(wm: &mut WM, e: &xlib::XEvent) {
+    let ev = unsafe { e.key };
+    let keysym = unsafe { xlib::XKeycodeToKeysym(wm.dpy, ev.keycode as u8, 0) };
+    for i in 0..config::keys.len() {
+        if keysym == config::keys[i].keysym
+        && cleanmask(ev.state) == cleanmask(config::keys[i].modif) {
+            let func = config::keys[i].func;
+            func(&config::keys[i].arg, wm);
+        }
+    }
 }
 
 /// Quit the wm
-fn quit(_: Arg, wm: &mut WM) {
+fn quit(_: &Arg, wm: &mut WM) {
     wm.running = false;
 }
 
@@ -205,5 +235,10 @@ fn noarrange(monitor: &Monitor) {
 }
 
 fn gridarrange(monitor: &Monitor) {
+    // TODO
+}
+
+/// Cleanup everything
+fn cleanup(wm: &mut WM) {
     // TODO
 }
