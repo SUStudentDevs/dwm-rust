@@ -106,6 +106,7 @@ impl<'a> Monitor<'a> {
             }
             x += w as i32;
         }
+
         let blw = textw(self.ltsymbol, drw);
         let mut w = blw;
         drw.setscheme(&mut scheme[SCHEMENORM]);
@@ -139,7 +140,7 @@ impl<'a> Monitor<'a> {
                 drw.rect(x, 0, w, bh, true, false, true);
             }
         }
-        drw.map(self.barwin, 0, 0, self.ww, bh);
+        drw.map(self.barwin, 0, 0, self.ww, bh); // C'est la que ca crashe : self.ww = 0 ?
     }
 
     /// Update position of the statusbar for this monitor

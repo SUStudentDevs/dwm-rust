@@ -1,5 +1,5 @@
 [tasks.install]
-description = "Installs dwm-rust in /usr/bin. Run with sudo"
+description = "Installs dwm-rust in /usr/local/bin."
 script = [
     "cargo build --release",
     "echo Installing in /usr/local/bin",

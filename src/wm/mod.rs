@@ -1,7 +1,7 @@
 extern crate x11;
 
 use std::ffi::CString;
-use std::collections::LinkedList;
+use std::ptr;
 
 use x11::xlib;
 use x11::xinerama;
@@ -13,7 +13,7 @@ pub mod client;
 use drw::{ Drw, Cur };
 use drw::clrscheme::{ Clr, ClrScheme };
 use config;
-use CURNORMAL;
+use { CURNORMAL, isuniquegeom };
 use self::monitor::Monitor;
 
 // Window Manager main class
@@ -90,8 +90,53 @@ impl<'a> WM<'a> {
     /// Updates the geometry
     pub fn updategeom(&mut self) -> bool {
         let mut dirty = false;
-        if unsafe { xinerama::XineramaIsActive(self.dpy) }!=0 {
-            // TODO
+        if unsafe { xinerama::XineramaIsActive(self.dpy) != 0 } {
+            let n = self.mons.len();
+            let mut nn: i32 = 0;
+            let mut unique = Vec::new();
+            let info = unsafe { xinerama::XineramaQueryScreens(self.dpy, &mut nn) };
+            let info = unsafe { Vec::from_raw_parts(info, nn as usize, nn as usize) };
+
+
+            for _ in 0..nn {
+                unique.push(xinerama::XineramaScreenInfo { // Dummy value
+                    height: 0, width: 0, screen_number: 0, x_org: 0, y_org: 0
+                });
+            }
+            let j = 0;
+            for i in 0..nn {
+                if isuniquegeom(&unique, j, &info[i as usize]) {
+                    j+1;
+                    unique[j] = info[i as usize].clone();
+                }
+            }
+            // xlib::XFree(info); // TODO
+            nn = unique.len() as i32;
+            if n <= nn as usize { // More physical monitors than Monitor in the wm : lets create new Monitors !
+                for i in 0..(nn-n as i32) {
+                    self.mons.push(Monitor::new());
+                }
+                for i in n..unique.len().min(self.mons.len()) { // And lets update their data
+                    if unique[i].x_org as i32 != self.mons[i].wx
+                    || unique[i].y_org as i32 != self.mons[i].wy
+                    || unique[i].width as u32 != self.mons[i].mw
+                    || unique[i].height as u32 != self.mons[i].mh {
+                        dirty = true;
+                        self.mons[i].num = i as i32;
+                        self.mons[i].mx = unique[i].x_org as i32;
+                        self.mons[i].wx = unique[i].x_org as i32;
+                        self.mons[i].my = unique[i].y_org as i32;
+                        self.mons[i].wy = unique[i].y_org as i32;
+                        self.mons[i].mw = unique[i].width as u32;
+                        self.mons[i].ww = unique[i].width as u32;
+                        self.mons[i].mh = unique[i].height as u32;
+                        self.mons[i].wh = unique[i].height as u32;
+                        self.mons[i].updatebarpos(self.bh);
+                    }
+                }
+            } else { // Else, we're going to have to destroy monitors :(
+
+            }
         } else {
             if self.mons.is_empty() {
                 self.mons.push(Monitor::new());

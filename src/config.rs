@@ -37,6 +37,5 @@ pub const MODKEY: u32 = xlib::Mod4Mask;
 
 pub const keys: [Key; 1] = [
     //    modifier              key                 function                argument
-    // Key { modif:MODKEY|xlib::ShiftMask, keysym:keysym::XK_e as u64, func:quit, arg:Arg {i: 0}},
-    Key { modif:MODKEY, keysym:keysym::XK_e as u64, func:quit, arg:Arg {i: 0}},
+    Key { modif:MODKEY|xlib::ShiftMask, keysym:keysym::XK_e as u64, func:quit, arg:Arg {i: 0}},
 ];

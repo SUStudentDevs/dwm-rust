@@ -3,8 +3,10 @@ extern crate x11;
 use std::env;
 use std::process;
 use std::ptr;
+use std::fs::File;
+use std::io::prelude::*;
 
-use x11::xlib;
+use x11::{ xlib, xinerama };
 
 pub mod wm;
 pub mod drw;
@@ -162,6 +164,17 @@ fn setup(dpy: &mut xlib::Display) -> WM {
     // focus(None); TODO
     wm
 }
+
+fn isuniquegeom(unique: &Vec<xinerama::XineramaScreenInfo>, n: usize, info: &xinerama::XineramaScreenInfo) -> bool {
+    for i in n..0 {
+        if unique[i].x_org == info.x_org && unique[i].y_org == info.y_org && unique[i].width == info.width && unique[i].height == info.height {
+            return false
+        }
+    }
+    true
+}
+
+
 
 fn wintomon<'a>(wm: &'a mut WM<'a>, w: xlib::Window) -> &'a mut Monitor<'a> {
     // TODO
