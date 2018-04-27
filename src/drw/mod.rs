@@ -11,12 +11,17 @@ pub mod fnt;
 use self::clrscheme::ClrScheme;
 use self::fnt::Fnt;
 
-/// Stores a cursor
+/**
+ * Stores a cursor (wrapper around xlib::Cursor)
+ */
 pub struct Cur {
     pub cursor: xlib::Cursor
 }
 
 impl Cur {
+    /**
+     * Constructor
+     */
     pub fn new(drw: &mut Drw, shape: u32) -> Cur {
         Cur {
             cursor: unsafe { xlib::XCreateFontCursor(drw.dpy, shape) }
@@ -24,10 +29,13 @@ impl Cur {
     }
 }
 
-pub struct Drw {
+/**
+ * Stores a drawble area (related to a Display)
+ */
+pub struct Drw<'a> {
     pub w: u32,
     pub h: u32,
-    dpy: *mut xlib::Display,
+    pub dpy: &'a mut xlib::Display,
     pub screen: i32,
     root: xlib::Window,
     drawable: xlib::Drawable,
@@ -36,24 +44,32 @@ pub struct Drw {
     pub fonts: Vec<Fnt>
 }
 
-impl Drw {
+impl<'a> Drw<'a> {
+    /**
+     * Constructor
+     */
     pub fn new(dpy: &mut xlib::Display, screen: i32, root: xlib::Window, w: u32, h:u32) -> Drw {
-        let drw = Drw {
+        let mut drw = Drw {
             dpy,
             screen,
             root,
             w,
             h,
-            drawable: unsafe { xlib::XCreatePixmap(dpy, root, w, h, xlib::XDefaultDepth(dpy, screen) as u32) },
-            gc: unsafe { xlib::XCreateGC(dpy, root, 0, ptr::null_mut()) },
+            drawable: 0,
+            gc: ptr::null_mut(),
             fonts: Vec::new(),
             scheme: ptr::null_mut()
         };
+        drw.drawable = unsafe { xlib::XCreatePixmap(drw.dpy, root, w, h, xlib::XDefaultDepth(drw.dpy, screen) as u32) };
+        drw.gc = unsafe { xlib::XCreateGC(drw.dpy, root, 0, ptr::null_mut()) };
         drw
     }
 
+    /**
+     * Destructor
+     */
     pub fn free(&mut self) {
-        for f in &self.fonts {
+        for f in &mut self.fonts {
             f.free();
         }
         unsafe {
@@ -62,10 +78,16 @@ impl Drw {
         }
     }
 
+    /**
+     * Changes the color scheme
+     */
     pub fn setscheme(&mut self, scheme: &mut ClrScheme) {
         self.scheme = scheme;
     }
 
+    /**
+     * Loads fonts
+     */
     pub fn load_fonts(&mut self, fontnames: Vec<&str>) {
         for f in fontnames {
             if let Some(font) = Fnt::new(self, Some(f), None) {
@@ -74,7 +96,9 @@ impl Drw {
         }
     }
 
-    // Draws a rectangle.
+    /**
+     * Draws a rectangle
+     */
     pub fn rect(&mut self, x: i32, y: i32, w: u32, h: u32, filled: bool, empty: bool, invert: bool) {
         let s = self.scheme;
         if !s.is_null() {
@@ -92,8 +116,10 @@ impl Drw {
         }
     }
 
-    // Draws text. TODO c'est pas encore fini
-    pub fn text(&mut self, x: i32, y: i32, mut w:u32, h:u32, text: &str, invert: bool) -> i32 {
+    /**
+     * Draws text, and returns text width
+     */
+    pub fn text(&mut self, mut x: i32, y: i32, mut w:u32, h:u32, text: &str, invert: bool) -> i32 {
         let s = self.scheme;
         let mut d = ptr::null_mut();
         if !s.is_null() {
@@ -111,24 +137,30 @@ impl Drw {
                     d = unsafe { xft:: XftDrawCreate(self.dpy, self.drawable, xlib::XDefaultVisual(self.dpy, self.screen), xlib::XDefaultColormap(self.dpy, self.screen)) };
                 }
 
-                let curfont = &self.fonts[0];
-                let nextfont = &self.fonts[0];
+                let curfont = &mut self.fonts[0];
                 let mut charexists = false;
+                let mut tex = fnt::Extnts { // Dummy value
+                    w: 0, h: 0
+                };
                 loop {
                     let utf8str = text.as_bytes();
+                    curfont.getexts(utf8str.to_vec(), &mut tex);
                     
                     if render {
                         let th = curfont.ascent + curfont.descent;
                         let ty = y + (h / 2) as i32 - (th / 2) + curfont.ascent;
                         let tx = x + (h / 2) as i32;
+                        println!("font : {:?}", unsafe { *(curfont.xfont) });
                         if invert {
                             unsafe { xft::XftDrawStringUtf8(d, &(*s).bg.rgb, curfont.xfont, tx, ty, utf8str.as_ptr(), utf8str.len() as i32) };
                         } else {
                             unsafe { xft::XftDrawStringUtf8(d, &(*s).fg.rgb, curfont.xfont, tx, ty, utf8str.as_ptr(), utf8str.len() as i32) };
                         } 
                     }
-                    
-                    if !charexists || nextfont != curfont {
+                    x += tex.w as i32;
+                    w -= tex.w;
+
+                    if !charexists /* || nextfont != curfont*/ {
                         break;
                     } else {
                         charexists = false;
@@ -142,7 +174,9 @@ impl Drw {
         x
     }
     
-    // Draws from a window.
+    /**
+     * Draws content from a Window on the screen
+     */
     pub fn map(&mut self, win: xlib::Window, x: i32, y: i32, w: u32, h: u32) {
         unsafe {
             xlib::XCopyArea(self.dpy, self.drawable, win, self.gc, x, y, w, h, x, y);

@@ -1,13 +1,14 @@
 extern crate x11;
 
 use std::ffi::CString;
-use std::ptr;
 
 use x11::xlib;
 use x11::xinerama;
 use x11::keysym;
 
+/// Monitor module
 pub mod monitor;
+/// Client module
 pub mod client;
 
 use drw::{ Drw, Cur };
@@ -16,10 +17,11 @@ use config;
 use { CURNORMAL, isuniquegeom };
 use self::monitor::Monitor;
 
-// Window Manager main class
+/**
+ * Stores the state of the Window Manager
+ */
 pub struct WM<'a> {
-    pub dpy: &'a mut xlib::Display,
-    pub drw: Drw,
+    pub drw: Drw<'a>,
     pub screen: i32,
     pub root: u64,
     pub running: bool,
@@ -36,10 +38,11 @@ pub struct WM<'a> {
 }
 
 impl<'a> WM<'a> {
-    // Inits the WM
-    pub fn new(dpy: &mut xlib::Display, drw: Drw, screen: i32, root: u64, sw: u32, sh: u32) -> WM {
+    /**
+     * Constructor (inits the WM)
+     */
+    pub fn new(drw: Drw<'a>, screen: i32, root: u64, sw: u32, sh: u32) -> WM<'a> {
         let mut wm = WM {
-            dpy,
             drw,
             screen,
             root,
@@ -58,43 +61,45 @@ impl<'a> WM<'a> {
         wm.bh = wm.drw.fonts[0].h + 2; 
         unsafe {
             // Init atoms
-            wm.wmatom.push(xlib::XInternAtom(wm.dpy, CString::new("WM_PROTOCOLS").unwrap().as_ptr(), 0));
-            wm.wmatom.push(xlib::XInternAtom(wm.dpy, CString::new("WM_DELETE_WINDOW").unwrap().as_ptr(), 0));
-            wm.wmatom.push(xlib::XInternAtom(wm.dpy, CString::new("WM_STATE").unwrap().as_ptr(), 0));
-            wm.wmatom.push(xlib::XInternAtom(wm.dpy, CString::new("WM_TAKE_FOCUS").unwrap().as_ptr(), 0));
-            wm.netatom.push(xlib::XInternAtom(wm.dpy,CString::new("_NET_ACTIVE_WINDOW").unwrap().as_ptr(), 0));
-            wm.netatom.push(xlib::XInternAtom(wm.dpy, CString::new("_NET_SUPPORTED").unwrap().as_ptr(), 0));
-            wm.netatom.push(xlib::XInternAtom(wm.dpy, CString::new("_NET_WM_NAME").unwrap().as_ptr(), 0));
-            wm.netatom.push(xlib::XInternAtom(wm.dpy, CString::new("_NET_WM_STATE").unwrap().as_ptr(), 0));
-            wm.netatom.push(xlib::XInternAtom(wm.dpy, CString::new("_NET_WM_STATE_FULLSCREEN").unwrap().as_ptr(), 0));
-            wm.netatom.push(xlib::XInternAtom(wm.dpy, CString::new("_NET_WM_WINDOWN_TYPE").unwrap().as_ptr(), 0));
-            wm.netatom.push(xlib::XInternAtom(wm.dpy, CString::new("_NET_WM_WINDOW_TYPE_DIALOG").unwrap().as_ptr(), 0));
-            wm.netatom.push(xlib::XInternAtom(wm.dpy, CString::new("_NET_CLIENT_LIST").unwrap().as_ptr(), 0));
+            wm.wmatom.push(xlib::XInternAtom(wm.drw.dpy, CString::new("WM_PROTOCOLS").unwrap().as_ptr(), 0));
+            wm.wmatom.push(xlib::XInternAtom(wm.drw.dpy, CString::new("WM_DELETE_WINDOW").unwrap().as_ptr(), 0));
+            wm.wmatom.push(xlib::XInternAtom(wm.drw.dpy, CString::new("WM_STATE").unwrap().as_ptr(), 0));
+            wm.wmatom.push(xlib::XInternAtom(wm.drw.dpy, CString::new("WM_TAKE_FOCUS").unwrap().as_ptr(), 0));
+            wm.netatom.push(xlib::XInternAtom(wm.drw.dpy,CString::new("_NET_ACTIVE_WINDOW").unwrap().as_ptr(), 0));
+            wm.netatom.push(xlib::XInternAtom(wm.drw.dpy, CString::new("_NET_SUPPORTED").unwrap().as_ptr(), 0));
+            wm.netatom.push(xlib::XInternAtom(wm.drw.dpy, CString::new("_NET_WM_NAME").unwrap().as_ptr(), 0));
+            wm.netatom.push(xlib::XInternAtom(wm.drw.dpy, CString::new("_NET_WM_STATE").unwrap().as_ptr(), 0));
+            wm.netatom.push(xlib::XInternAtom(wm.drw.dpy, CString::new("_NET_WM_STATE_FULLSCREEN").unwrap().as_ptr(), 0));
+            wm.netatom.push(xlib::XInternAtom(wm.drw.dpy, CString::new("_NET_WM_WINDOWN_TYPE").unwrap().as_ptr(), 0));
+            wm.netatom.push(xlib::XInternAtom(wm.drw.dpy, CString::new("_NET_WM_WINDOW_TYPE_DIALOG").unwrap().as_ptr(), 0));
+            wm.netatom.push(xlib::XInternAtom(wm.drw.dpy, CString::new("_NET_CLIENT_LIST").unwrap().as_ptr(), 0));
             // Init cursors
             wm.cursor.push(Cur::new(&mut (wm.drw), 68)); // Normal
             wm.cursor.push(Cur::new(&mut (wm.drw), 120)); // Resize
             wm.cursor.push(Cur::new(&mut (wm.drw), 52)); // Move
             // Init color schemes
             wm.scheme.push(ClrScheme::new(
-                    Clr::new(wm.dpy, wm.drw.screen, config::normfgcolor),
-                    Clr::new(wm.dpy, wm.drw.screen, config::normbgcolor),
-                    Clr::new(wm.dpy, wm.drw.screen, config::normbordercolor))); // Normal
+                    Clr::new(wm.drw.dpy, wm.drw.screen, config::normfgcolor),
+                    Clr::new(wm.drw.dpy, wm.drw.screen, config::normbgcolor),
+                    Clr::new(wm.drw.dpy, wm.drw.screen, config::normbordercolor))); // Normal
             wm.scheme.push(ClrScheme::new(
-                    Clr::new(wm.dpy, wm.drw.screen, config::selfgcolor),
-                    Clr::new(wm.dpy, wm.drw.screen, config::selbgcolor),
-                    Clr::new(wm.dpy, wm.drw.screen, config::selbordercolor))); // Selected
+                    Clr::new(wm.drw.dpy, wm.drw.screen, config::selfgcolor),
+                    Clr::new(wm.drw.dpy, wm.drw.screen, config::selbgcolor),
+                    Clr::new(wm.drw.dpy, wm.drw.screen, config::selbordercolor))); // Selected
             } 
         wm 
     } 
 
-    /// Updates the geometry
+    /**
+     * Updates the geometry
+     */
     pub fn updategeom(&mut self) -> bool {
         let mut dirty = false;
-        if unsafe { xinerama::XineramaIsActive(self.dpy) != 0 } {
+        if unsafe { xinerama::XineramaIsActive(self.drw.dpy) != 0 } {
             let n = self.mons.len();
             let mut nn: i32 = 0;
             let mut unique = Vec::new();
-            let info = unsafe { xinerama::XineramaQueryScreens(self.dpy, &mut nn) };
+            let info = unsafe { xinerama::XineramaQueryScreens(self.drw.dpy, &mut nn) };
             let info = unsafe { Vec::from_raw_parts(info, nn as usize, nn as usize) };
 
 
@@ -113,7 +118,7 @@ impl<'a> WM<'a> {
             // xlib::XFree(info); // TODO
             nn = unique.len() as i32;
             if n <= nn as usize { // More physical monitors than Monitor in the wm : lets create new Monitors !
-                for i in 0..(nn-n as i32) {
+                for _ in 0..(nn-n as i32) {
                     self.mons.push(Monitor::new());
                 }
                 for i in n..unique.len().min(self.mons.len()) { // And lets update their data
@@ -157,7 +162,9 @@ impl<'a> WM<'a> {
         dirty
     }
 
-    /// Updates the status bars
+    /**
+     * Updates the status bars
+     */
     pub fn updatebars(&mut self) {
         let mut wa = xlib::XSetWindowAttributes {
             background_pixmap: xlib::ParentRelative as u64,
@@ -179,56 +186,60 @@ impl<'a> WM<'a> {
         for mut m in &mut self.mons {
             if m.barwin == 0 {
                 m.barwin = unsafe { 
-                    xlib::XCreateWindow(self.dpy,
+                    xlib::XCreateWindow(self.drw.dpy,
                                         self.root,
                                         m.wx, m.by, m.ww as u32, 
                                         self.bh, 
                                         0, 
-                                        xlib::XDefaultDepth(self.dpy, self.screen), 
+                                        xlib::XDefaultDepth(self.drw.dpy, self.screen), 
                                         xlib::CopyFromParent as u32, 
-                                        xlib::XDefaultVisual(self.dpy, self.screen), 
+                                        xlib::XDefaultVisual(self.drw.dpy, self.screen), 
                                         xlib::CWOverrideRedirect|xlib::CWBackPixmap|xlib::CWEventMask, &mut wa) };
-                unsafe { xlib::XDefineCursor(self.dpy, m.barwin, self.cursor[CURNORMAL].cursor) };
-                unsafe { xlib::XMapRaised(self.dpy, m.barwin) };
+                unsafe { xlib::XDefineCursor(self.drw.dpy, m.barwin, self.cursor[CURNORMAL].cursor) };
+                unsafe { xlib::XMapRaised(self.drw.dpy, m.barwin) };
             }
         }
     }
 
-    /// Updates the status text
+    /**
+     * Updates the status bar text
+     */
     pub fn updatestatus(&mut self) {
         // if(...) TODO
         let selmon = &mut self.mons[self.selmonindex];
         selmon.drawbar(&mut (self.drw), self.bh, &mut self.scheme, selmon, &self.stext[..]);
     }
 
-    /// Grab keys for the window manager
+    /**
+     * Loads and grabs the keys defined in config::keys
+     */
     pub fn grabkeys(&mut self) {
         self.updatenumlockmask();
         let modifiers = vec![0, xlib::LockMask, self.numlockmask, self.numlockmask|xlib::LockMask];
 
-        unsafe { xlib::XUngrabKey(self.dpy, xlib::AnyKey, xlib::AnyModifier, self.root) };
+        unsafe { xlib::XUngrabKey(self.drw.dpy, xlib::AnyKey, xlib::AnyModifier, self.root) };
         for i in 0..config::keys.len() {
-            let code = unsafe { xlib::XKeysymToKeycode(self.dpy, config::keys[i].keysym) };
+            let code = unsafe { xlib::XKeysymToKeycode(self.drw.dpy, config::keys[i].keysym) };
             if code != 0 {
                 for j in 0..modifiers.len() {
-                    unsafe { xlib::XGrabKey(self.dpy, code as i32, config::keys[i].modif | modifiers[j], self.root, 1, xlib::GrabModeAsync, xlib::GrabModeAsync) };
+                    unsafe { xlib::XGrabKey(self.drw.dpy, code as i32, config::keys[i].modif | modifiers[j], self.root, 1, xlib::GrabModeAsync, xlib::GrabModeAsync) };
                 }
             }
         }
     }
 
     fn updatenumlockmask(&mut self) {
-        let modmap = unsafe { (*xlib::XGetModifierMapping(self.dpy)) };
+        let modmap = unsafe { (*xlib::XGetModifierMapping(self.drw.dpy)) };
         self.numlockmask = 0;
         let modifiermap = unsafe { Vec::from_raw_parts(modmap.modifiermap, 8 * modmap.max_keypermod as usize, 8 * modmap.max_keypermod as usize) };
         for i in 0..8 {
             for j in 0..modmap.max_keypermod {
-                if modifiermap[(i * modmap.max_keypermod + j) as usize] == unsafe { xlib::XKeysymToKeycode(self.dpy, keysym::XK_Num_Lock as u64) } {
+                if modifiermap[(i * modmap.max_keypermod + j) as usize] == unsafe { xlib::XKeysymToKeycode(self.drw.dpy, keysym::XK_Num_Lock as u64) } {
                     self.numlockmask = 1 << i;
                 }
             }
         }
-        // unsafe { xlib::XFreeModifiermap(&mut modmap); } Ca cause un crash
+        // unsafe { xlib::XFreeModifiermap(&mut modmap); } Causes a crash for some reason
     }
 }
 

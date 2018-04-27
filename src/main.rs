@@ -3,13 +3,15 @@ extern crate x11;
 use std::env;
 use std::process;
 use std::ptr;
-use std::fs::File;
-use std::io::prelude::*;
+use std::process::Command;
 
 use x11::{ xlib, xinerama };
 
+/// Window Manager module
 pub mod wm;
+/// Drawable module
 pub mod drw;
+/// Configuration module
 pub mod config;
 
 use wm::WM;
@@ -28,37 +30,44 @@ pub const CURNORMAL: usize = 0; pub const CURRESIZE: usize = 1; pub const CURMOV
 // Color scheme indexes
 pub const SCHEMENORM: usize = 0; pub const SCHEMESEL: usize = 1;
 
-// Fn instead of C macros
-fn textw(s: &str, drw: &mut Drw) -> u32 {
-    drw.text(0, 0, 0, 0, s, false) as u32 + drw.fonts[0].h
-}
-
 fn cleanmask(mask: u32) -> u32 {
     mask
 }
 
-union Arg {
+/**
+ * Stores an argument to pass to functions on keypress and click events
+ */
+pub union Arg<'a> {
     i: i32,
     u: u32,
     f: f32,
-    // TODO pointer
+    s: &'a str
 }
 
-pub struct Key {
+/**
+ * Stores a key for keypress events
+ */
+pub struct Key<'a> {
     modif: u32,
     keysym: xlib::KeySym,
     func: fn (&Arg, &mut WM),
-    arg: Arg
+    arg: Arg<'a>
 }
 
-pub struct Button {
+/**
+ * Stores a button for click events
+ */
+pub struct Button<'a> {
     click: u32,
     mask: u32,
     button: u32,
     func: fn (Arg, &mut WM),
-    arg: Arg
+    arg: Arg<'a>
 }
 
+/**
+ * Stores a tag
+ */
 pub struct Pertag<'a> {
     curtag: u32, prevtag: u32,  // Current and previous tag
     nmasters: Vec<i32>, // number windows in master area
@@ -86,7 +95,7 @@ fn main() {
         let mut wm = setup(dpy);
         run(&mut wm); 
         cleanup(&mut wm);
-        unsafe { xlib::XCloseDisplay(wm.dpy) };
+        unsafe { xlib::XCloseDisplay(wm.drw.dpy) };
     } else {
         println!("dwm-rust: can't open display"); 
         process::exit(1); 
@@ -112,8 +121,10 @@ unsafe extern "C" fn xerror(_dpy: *mut xlib::Display, ee: *mut xlib::XErrorEvent
     } 
 }
 
-/// Checks for another WM running. If there is one, prints an error and exits.
-fn checkotherwm(dpy: *mut xlib::Display) { 
+/**
+ * Checks for another WM running. If there is one, prints an error and exits.
+ */
+pub fn checkotherwm(dpy: *mut xlib::Display) { 
     unsafe { 
         xlib::XSetErrorHandler(Some(xerrorstart));
         xlib::XSelectInput(dpy, xlib::XDefaultRootWindow(dpy), xlib::SubstructureRedirectMask);
@@ -121,8 +132,10 @@ fn checkotherwm(dpy: *mut xlib::Display) {
     } 
 }
 
-/// Setup everything
-fn setup(dpy: &mut xlib::Display) -> WM {
+/**
+ * Setup the Window Manager
+ */
+pub fn setup(dpy: &mut xlib::Display) -> WM {
     let screen = unsafe { xlib::XDefaultScreen(dpy) };
     let sw = unsafe { xlib::XDisplayWidth(dpy, screen) } as u32;
     let sh = unsafe { xlib::XDisplayHeight(dpy, screen) } as u32;
@@ -135,14 +148,14 @@ fn setup(dpy: &mut xlib::Display) -> WM {
         process::exit(1);
     }
 
-    let mut wm : WM = WM::new(dpy, drw, screen, root, sw, sh);
+    let mut wm : WM = WM::new(drw, screen, root, sw, sh);
     wm.updategeom();
     wm.updatebars();
     wm.updatestatus();
     unsafe {
-        xlib::XChangeProperty(wm.dpy, wm.root, wm.netatom[NETSUPPORTED], xlib::XA_ATOM, 32, xlib::PropModeReplace, &(wm.netatom[0] as u8), NETLAST as i32);
-        xlib::XDeleteProperty(wm.dpy, wm.root, wm.netatom[NETCLIENTLIST]); 
-        xlib::XChangeWindowAttributes(wm.dpy, wm.root, xlib::CWEventMask|xlib::CWCursor, &mut xlib::XSetWindowAttributes {
+        xlib::XChangeProperty(wm.drw.dpy, wm.root, wm.netatom[NETSUPPORTED], xlib::XA_ATOM, 32, xlib::PropModeReplace, &(wm.netatom[0] as u8), NETLAST as i32);
+        xlib::XDeleteProperty(wm.drw.dpy, wm.root, wm.netatom[NETCLIENTLIST]); 
+        xlib::XChangeWindowAttributes(wm.drw.dpy, wm.root, xlib::CWEventMask|xlib::CWCursor, &mut xlib::XSetWindowAttributes {
             background_pixmap: 0,
             background_pixel: 0, 
             border_pixmap: xlib::CopyFromParent as u64, 
@@ -165,7 +178,7 @@ fn setup(dpy: &mut xlib::Display) -> WM {
     wm
 }
 
-fn isuniquegeom(unique: &Vec<xinerama::XineramaScreenInfo>, n: usize, info: &xinerama::XineramaScreenInfo) -> bool {
+pub fn isuniquegeom(unique: &Vec<xinerama::XineramaScreenInfo>, n: usize, info: &xinerama::XineramaScreenInfo) -> bool {
     for i in n..0 {
         if unique[i].x_org == info.x_org && unique[i].y_org == info.y_org && unique[i].width == info.width && unique[i].height == info.height {
             return false
@@ -174,32 +187,28 @@ fn isuniquegeom(unique: &Vec<xinerama::XineramaScreenInfo>, n: usize, info: &xin
     true
 }
 
-
-
-fn wintomon<'a>(wm: &'a mut WM<'a>, w: xlib::Window) -> &'a mut Monitor<'a> {
-    // TODO
-    if w == wm.root {
-        // TODO recttomon
-    }
-    &mut wm.mons[0]
-}
-
-/// Main loop
-fn run(wm: &mut WM) {
-    let ev = &mut xlib::XEvent { any: xlib::XAnyEvent { type_: 0, serial: 0, send_event: 0, display: wm.dpy, window: wm.root } }; // Dummy value
+/**
+ * Main program loop
+ */
+pub fn run(wm: &mut WM<'static>) {
+    let ev = &mut xlib::XEvent { any: xlib::XAnyEvent { type_: 0, serial: 0, send_event: 0, display: wm.drw.dpy, window: wm.root } }; // Dummy value
     unsafe {
-        xlib::XSync(wm.dpy, 0);
-        while wm.running && xlib::XNextEvent(wm.dpy, ev)==0 {
+        xlib::XSync(wm.drw.dpy, 0);
+        while wm.running && xlib::XNextEvent(wm.drw.dpy, ev)==0 {
             handleevent(wm, ev);
         }
     }
 }
 
-/// Handle an event
-fn handleevent(wm: &mut WM, ev: &xlib::XEvent) {
+/**
+ * Handles an event
+ */
+pub fn handleevent(wm: &mut WM<'static>, ev: &xlib::XEvent) {
     unsafe {
         match ev.type_ {
             xlib::ButtonPress => buttonpress(wm, ev),
+            xlib::ConfigureRequest => configurerequest(wm, ev),
+            xlib::EnterNotify => enternotify(wm, ev),
             xlib::KeyPress => keypress(wm, ev),
             // TODO : les autres handlers
             _ => ()
@@ -207,8 +216,10 @@ fn handleevent(wm: &mut WM, ev: &xlib::XEvent) {
     }
 }
 
-/// Handle a button press
-fn buttonpress(wm: &mut WM, e: &xlib::XEvent) {
+/**
+ * Handles a button press
+ */
+pub fn buttonpress(wm: &mut WM, e: &xlib::XEvent) {
     let arg = Arg {i: 0};
     let ev = unsafe { e.button };
     // click = CLKROOTWIN;
@@ -216,10 +227,53 @@ fn buttonpress(wm: &mut WM, e: &xlib::XEvent) {
     // TODO
 }
 
-/// Handle a key press
-fn keypress(wm: &mut WM, e: &xlib::XEvent) {
+/**
+ * Handles a change of a window configuration
+ */
+pub fn configurerequest(wm: &mut WM<'static>, e: &xlib::XEvent) {
+    let ev = unsafe { e.configure_request };
+
+    if let Some(c) = Client::from(ev.window, &mut (wm.mons)) {
+        if ev.value_mask & xlib::CWBorderWidth as u64 != 0 {
+            c.bw = ev.border_width;
+        } else if c.isfloating /*|| !(wm.mons[wm.selmonindex].lt[wm.mons[wm.selmonindex].sellt as usize].arrange) TODO*/ {
+            let m = &(c.mon);
+            // TODO
+        }
+    } else {
+        let mut wc = xlib::XWindowChanges {
+            x: ev.x, y: ev.y,
+            width: ev.width, height: ev.height,
+            border_width: ev.border_width,
+            sibling: ev.above,
+            stack_mode: ev.detail
+        };
+        unsafe { xlib::XConfigureWindow(wm.drw.dpy, ev.window, ev.value_mask as u32, &mut wc) };
+    }
+    unsafe { xlib::XSync(wm.drw.dpy, 0) };
+}
+
+/**
+ * Handles the entering of a window
+ */
+pub fn enternotify(wm: &mut WM<'static>, e: &xlib::XEvent) {
+    let ev = unsafe { e.crossing };
+    if (ev.mode != xlib::NotifyNormal || ev.detail == xlib::NotifyInferior) && ev.window != wm.root {
+        return;
+    }
+    /*if let Some(c) = Client::from(ev.window, &mut wm.mons) { TODO
+        let m = &c.mon;
+    } else {
+        let m = Monitor::from_window(ev.window, wm.root, &mut wm.mons, &mut wm.mons[wm.selmonindex]);
+    }*/
+}
+
+/**
+ * Handles a keypress
+ */
+pub fn keypress(wm: &mut WM, e: &xlib::XEvent) {
     let ev = unsafe { e.key };
-    let keysym = unsafe { xlib::XKeycodeToKeysym(wm.dpy, ev.keycode as u8, 0) };
+    let keysym = unsafe { xlib::XKeycodeToKeysym(wm.drw.dpy, ev.keycode as u8, 0) };
     for i in 0..config::keys.len() {
         if keysym == config::keys[i].keysym
         && cleanmask(ev.state) == cleanmask(config::keys[i].modif) {
@@ -229,8 +283,22 @@ fn keypress(wm: &mut WM, e: &xlib::XEvent) {
     }
 }
 
-/// Quit the wm
-fn quit(_: &Arg, wm: &mut WM) {
+/**
+ * Execute a shell command
+ */
+pub fn spawn(arg: &Arg, _: &mut WM) {
+    let v : Vec<&str> = unsafe { arg.s.split(' ').collect() };
+    let mut command = Command::new(v[0]);
+    for i in 1..v.len() {
+        command.arg(v[i]);
+    }
+    command.spawn().expect(&["Command", unsafe { arg.s }, "has failed..."].join(" ")[..]);
+}
+
+/**
+ * Quit the WM
+ */
+pub fn quit(_: &Arg, wm: &mut WM) {
     wm.running = false;
 }
 
@@ -251,7 +319,9 @@ fn gridarrange(monitor: &Monitor) {
     // TODO
 }
 
-/// Cleanup everything
+/**
+ * Cleanup and free memory
+ */
 fn cleanup(wm: &mut WM) {
     // TODO
 }

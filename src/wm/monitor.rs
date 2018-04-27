@@ -5,19 +5,37 @@ use std::collections::LinkedList;
 use x11::xlib;
 
 use { Client, Pertag };
-use textw;
 use { SCHEMENORM, SCHEMESEL };
 use drw::Drw;
 use drw::clrscheme::ClrScheme;
 use config;
 
-// Layout class
+/**
+ * Width of a text
+ */
+pub fn textw(s: &str, drw: &mut Drw) -> u32 {
+    drw.text(0, 0, 0, 0, s, false) as u32 + drw.fonts[0].h
+}
+
+/**
+ * Area of a rectangle
+ */
+pub fn intersect(x: i32, y: i32, w: u32, h: u32, m: &Monitor) -> u32 {
+    0.max((x as u32 + w).min(m.wx as u32 + m.ww - x.max(m.wx) as u32)) *
+    0.max((y as u32 + h).min(m.wy as u32 + m.wh - y.max(m.wy) as u32))// TODO
+}
+
+/**
+ * Stores a layout
+ */
 pub struct Layout<'a> {
     pub symbol: &'a str,
     pub arrange: fn(&Monitor)
 }
 
-// Monitor class
+/**
+ * Stores a monitor
+ */
 pub struct Monitor<'a> {
     pub ltsymbol: &'a str,
     pub mfact: f32,
@@ -40,6 +58,9 @@ pub struct Monitor<'a> {
 }
 
 impl<'a> Monitor<'a> {
+    /**
+     * Constructor
+     */
     pub fn new<'b>() -> Monitor<'a> {
         let mut mon = Monitor {
             ltsymbol: config::layouts[0].symbol.clone(),
@@ -77,7 +98,36 @@ impl<'a> Monitor<'a> {
         // TODO tags
     }
 
-    // Draws the statusbar for this monitor
+    /**
+     * Finds the Monitor intersecting with a rectangle
+     */
+    pub fn from_rect(x: i32, y: i32, w: u32, h: u32, mons: &'a mut Vec<Monitor<'static>>, selmon: &'a mut Monitor<'static>) -> &'a mut Monitor<'static> {
+        let mut area = 0;
+        let mut r = selmon;
+        for m in mons.iter_mut() {
+            let a = intersect(x, y, w, h, m);
+            if a > area {
+                area = a;
+                r = m;
+            }
+        }
+        r
+    }
+
+    /**
+     * Finds the Monitor a Window is on
+     */
+    pub fn from_window(w: xlib::Window, root: xlib::Window, mons: &'a mut Vec<Monitor<'static>>, selmon: &'a mut Monitor<'static>) -> &'a mut Monitor<'static> {
+        if w == root && true /* TODO */ {
+            Monitor::from_rect(0, 0, 1, 1, mons, selmon)
+        } else {
+            selmon
+        }
+    }
+
+    /**
+     * Draws the statusbar for this Monitor
+     */
     pub fn drawbar(&self, drw: &mut Drw, bh: u32, scheme: &mut Vec<ClrScheme>, selmon: &Monitor<'a>, stext: &str) {
         let dx: u32 = ((drw.fonts[0].ascent + drw.fonts[0].descent + 2) / 4) as u32;
         let mut occ = 0;
@@ -143,7 +193,9 @@ impl<'a> Monitor<'a> {
         drw.map(self.barwin, 0, 0, self.ww, bh); // C'est la que ca crashe : self.ww = 0 ?
     }
 
-    /// Update position of the statusbar for this monitor
+    /**
+     * Updates the position of the statusbar for this Monitor
+     */
     pub fn updatebarpos(&mut self, bh: u32) {
         self.wy = self.my;
         self.wh = self.mh;

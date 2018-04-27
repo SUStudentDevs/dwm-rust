@@ -4,7 +4,9 @@ use x11::xlib;
 
 use wm::monitor::Monitor;
 
-/// Client (Window) class
+/**
+ * Stores a Client (wrapper around the xlib::Window struct)
+ */
 pub struct Client<'a> {
     pub name: String,
     pub mina: f32, pub maxa: f32,
@@ -16,4 +18,20 @@ pub struct Client<'a> {
     pub isfixed: bool, pub isfloating: bool, pub isurgent: bool, pub neverfocus: bool, pub oldwm:bool, pub isfullscreen: bool,
     pub mon: &'a mut Monitor<'a>,
     pub win: xlib::Window
+}
+
+impl<'a> Client<'a> {
+    /**
+     * Finds the Client containing a Window
+     */
+    pub fn from(window : xlib::Window, mons: &'a mut Vec<Monitor<'static>>) -> Option<&'a mut Client<'static>> {
+        for m in mons.iter_mut() {
+            for c in m.clients.iter_mut() {
+                if c.win == window {
+                    return Some(c)
+                }
+            }
+        }
+        None
+    }
 }

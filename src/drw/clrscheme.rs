@@ -5,7 +5,9 @@ use std::ffi::CString;
 
 use x11::{ xlib, xft, xrender };
 
-/// Color class
+/**
+ * Stores a color (wrapper around the xft::XftColor struct)
+ */
 pub struct Clr {
     pub pix: u64,
     pub rgb: xft::XftColor
@@ -32,7 +34,9 @@ impl Clr {
     }
 }
 
-/// ColorScheme class
+/**
+ * Stores a color scheme (foreground, background and border colors)
+ */
 pub struct ClrScheme {
     pub fg: Clr,
     pub bg: Clr,
@@ -40,6 +44,9 @@ pub struct ClrScheme {
 }
 
 impl ClrScheme {
+    /**
+     * Constructor
+     */
     pub fn new(fg: Clr, bg: Clr, border: Clr) -> ClrScheme {
         ClrScheme {
             fg,
