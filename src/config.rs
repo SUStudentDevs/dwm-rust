@@ -1,5 +1,5 @@
 use x11::xlib;
-use x11::keysym;
+use x11::keysym::*;
 
 use { Layout, Key, Arg };
 use { tilearrange, monoclearrange, noarrange, gridarrange };
@@ -43,9 +43,12 @@ pub const tags: [&str; 9] = ["1", "2", "3", "4", "5", "6", "7", "8", "9"];
 pub const MODKEY: u32 = xlib::Mod4Mask;
 
 /// Key combinations and their actions
-pub const keys: [Key; 3] = [
+pub const keys: [Key; 6] = [
     //    modifier              key                 function                argument
-    Key { modif:MODKEY,                 keysym:keysym::XK_Return as u64, func:spawn, arg:Arg {s: "gnome-terminal -e tmux"}},
-    Key { modif:MODKEY,                 keysym:keysym::XK_space as u64, func:spawn, arg:Arg {s: "rofi -show run"}},
-    Key { modif:MODKEY|xlib::ShiftMask, keysym:keysym::XK_e as u64, func:quit, arg:Arg {i: 0}},
+    Key { modif:MODKEY,                 keysym:XK_Return as u64, func:spawn, arg:Arg {s: "gnome-terminal -e tmux"}},
+    Key { modif:MODKEY,                 keysym:XK_space as u64, func:spawn, arg:Arg {s: "rofi -show run"}},
+    Key { modif:MODKEY|xlib::ShiftMask, keysym:XK_e as u64, func:quit, arg:Arg {i: 0}},
+    Key { modif:MODKEY|xlib::ShiftMask, keysym:XF86XK_AudioLowerVolume as u64, func:spawn, arg:Arg {s: "amixer -q sset 'Master' 5%-"}},
+    Key { modif:MODKEY|xlib::ShiftMask, keysym:XF86XK_AudioRaiseVolume as u64, func:spawn, arg:Arg {s: "amixer -q sset 'Master' 5%+"}},
+    Key { modif:MODKEY|xlib::ShiftMask, keysym:XF86XK_AudioMute as u64, func:spawn, arg:Arg {s: "amixer -q sset 'Master' "}},
 ];

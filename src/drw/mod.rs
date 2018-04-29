@@ -70,7 +70,7 @@ impl<'a> Drw<'a> {
      */
     pub fn free(&mut self) {
         for f in &mut self.fonts {
-            f.free();
+            f.free(self.dpy);
         }
         unsafe {
             xlib::XFreePixmap(self.dpy, self.drawable);
@@ -144,13 +144,12 @@ impl<'a> Drw<'a> {
                 };
                 loop {
                     let utf8str = text.as_bytes();
-                    curfont.getexts(utf8str.to_vec(), &mut tex);
+                    curfont.getexts(self.dpy, utf8str.to_vec(), &mut tex);
                     
                     if render {
                         let th = curfont.ascent + curfont.descent;
                         let ty = y + (h / 2) as i32 - (th / 2) + curfont.ascent;
                         let tx = x + (h / 2) as i32;
-                        println!("font : {:?}", unsafe { *(curfont.xfont) });
                         if invert {
                             unsafe { xft::XftDrawStringUtf8(d, &(*s).bg.rgb, curfont.xfont, tx, ty, utf8str.as_ptr(), utf8str.len() as i32) };
                         } else {

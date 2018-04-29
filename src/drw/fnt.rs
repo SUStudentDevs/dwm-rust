@@ -19,7 +19,6 @@ pub struct Extnts {
  * Stores a font (wrapper around xft::XftFont struct)
  */
 pub struct Fnt {
-    pub dpy: *mut xlib::Display,
     pub ascent: i32,
     pub descent: i32,
     pub h: u32,
@@ -46,7 +45,6 @@ impl Fnt {
                 } else {
                     unsafe { 
                         Some(Fnt {
-                            dpy: &mut *drw.dpy,
                             ascent: (*xfont).ascent,
                             descent: (*xfont).descent,
                             h: ((*xfont).ascent + (*xfont).descent) as u32,
@@ -64,7 +62,6 @@ impl Fnt {
             } else {
                 unsafe {
                     Some(Fnt {
-                        dpy: &mut *drw.dpy,
                         ascent: (*xfont).ascent,
                         descent: (*xfont).descent,
                         h: ((*xfont).ascent + (*xfont).descent) as u32,
@@ -82,24 +79,24 @@ impl Fnt {
     /**
      * Destructor (frees xfont)
      */
-    pub fn free(&mut self) {
-        unsafe { xft::XftFontClose(self.dpy, self.xfont) };
+    pub fn free(&mut self, dpy: &mut xlib::Display) {
+        unsafe { xft::XftFontClose(dpy, self.xfont) };
     }
 
-    pub fn getexts(&mut self, text: Vec<u8>, tex: &mut Extnts) {
+    pub fn getexts(&mut self, dpy: &mut xlib::Display, text: Vec<u8>, tex: &mut Extnts) {
         let mut ext = xrender::XGlyphInfo { // Dummy value
             height: 0, width: 0, x: 0, y: 0, xOff: 0, yOff: 0
         };
-        unsafe { xft::XftTextExtentsUtf8(self.dpy, self.xfont, text.as_ptr(), text.len() as i32, &mut ext) }
+        unsafe { xft::XftTextExtentsUtf8(dpy, self.xfont, text.as_ptr(), text.len() as i32, &mut ext) }
         tex.h = self.h;
         tex.w = ext.xOff as u32;
     }
 
-    pub fn getexts_width(&mut self, text: Vec<u8>) -> u32 {
+    pub fn getexts_width(&mut self, dpy: &mut xlib::Display, text: Vec<u8>) -> u32 {
         let mut tex = Extnts { // Dummy value
             w: 0, h: 0
         };
-        self.getexts(text, &mut tex);
+        self.getexts(dpy, text, &mut tex);
         tex.w
     }
 }

@@ -22,7 +22,7 @@ pub fn textw(s: &str, drw: &mut Drw) -> u32 {
  */
 pub fn intersect(x: i32, y: i32, w: u32, h: u32, m: &Monitor) -> u32 {
     0.max((x as u32 + w).min(m.wx as u32 + m.ww - x.max(m.wx) as u32)) *
-    0.max((y as u32 + h).min(m.wy as u32 + m.wh - y.max(m.wy) as u32))// TODO
+    0.max((y as u32 + h).min(m.wy as u32 + m.wh - y.max(m.wy) as u32))
 }
 
 /**
@@ -104,7 +104,7 @@ impl<'a> Monitor<'a> {
     pub fn from_rect(x: i32, y: i32, w: u32, h: u32, mons: &'a mut Vec<Monitor<'static>>, selmon: &'a mut Monitor<'static>) -> &'a mut Monitor<'static> {
         let mut area = 0;
         let mut r = selmon;
-        for m in mons.iter_mut() {
+        for m in mons.into_iter() {
             let a = intersect(x, y, w, h, m);
             if a > area {
                 area = a;
