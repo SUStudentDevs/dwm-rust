@@ -11,11 +11,12 @@ pub mod monitor;
 /// Client module
 pub mod client;
 
+use { CURNORMAL, SCHEMENORM, isuniquegeom };
+use self::monitor::Monitor;
+use self::client::Client;
 use drw::{ Drw, Cur };
 use drw::clrscheme::{ Clr, ClrScheme };
 use config;
-use { CURNORMAL, isuniquegeom };
-use self::monitor::Monitor;
 
 /**
  * Stores the state of the Window Manager
@@ -157,7 +158,6 @@ impl<'a> WM<'a> {
         if dirty {
             // TODO
             self.selmonindex = 0;
-            //self.selmon = Some(wintomon(wm, wm.root));
         }
         dirty
     }
@@ -183,7 +183,7 @@ impl<'a> WM<'a> {
             colormap: xlib::CopyFromParent as u64, 
             cursor: self.cursor[CURNORMAL].cursor
         };
-        for mut m in &mut self.mons {
+        for mut m in self.mons.iter_mut() {
             if m.barwin == 0 {
                 m.barwin = unsafe { 
                     xlib::XCreateWindow(self.drw.dpy,
@@ -228,6 +228,24 @@ impl<'a> WM<'a> {
         }
     }
 
+    /**
+     * Grabs buttons
+     */
+    pub fn grabbuttons(&mut self, c: &Client, focused: bool) {
+        self.updatenumlockmask();
+        let modifiers = vec![0, xlib::LockMask, self.numlockmask, xlib::LockMask|self.numlockmask];
+        unsafe { xlib::XUngrabButton(self.drw.dpy, xlib::AnyButton as u32, xlib::AnyModifier, c.win) };
+        if focused {
+            for b in config::buttons.iter() {
+                /*if b.click == ClkClientWin {
+                    TODO
+                }*/
+            }
+        } else {
+            unsafe { xlib::XGrabButton(self.drw.dpy, xlib::AnyButton as u32, xlib::AnyModifier, c.win, 0, (xlib::ButtonPressMask|xlib::ButtonReleaseMask) as u32, xlib::GrabModeAsync, xlib::GrabModeSync, 0, 0) };
+        }
+    }
+
     fn updatenumlockmask(&mut self) {
         let modmap = unsafe { (*xlib::XGetModifierMapping(self.drw.dpy)) };
         self.numlockmask = 0;
@@ -239,7 +257,58 @@ impl<'a> WM<'a> {
                 }
             }
         }
-        // unsafe { xlib::XFreeModifiermap(&mut modmap); } Causes a crash for some reason
+        // unsafe { xlib::XFreeModifiermap(&mut modmap); } TODO Causes a crash for some reason
+    }
+
+    /**
+     * Manage a new Window
+     */
+    pub fn manage(&mut self, w: xlib::Window, wa: &xlib::XWindowAttributes) {
+        let mut c = Client::new(w, wa, self.selmonindex);
+        c.updatetitle();
+        let mut trans = 0;
+        if unsafe { xlib::XGetTransientForHint(self.drw.dpy, w, &mut trans) } != 0 {
+            if let Some(t) = Client::from(trans, &self.mons) {
+                c.monindex = t.monindex;
+                c.tags = t.tags;
+            } else {
+                c.monindex = self.selmonindex;
+                c.applyrules();
+            }
+        } else {
+            c.monindex = self.selmonindex;
+            c.applyrules();
+        }
+        let mon = &self.mons[c.monindex];
+        if c.x + c.width() as i32 > mon.mx + mon.mw as i32 {
+            c.x = mon.mx + mon.mw as i32 - c.width() as i32;
+        }
+        if c.y + c.height() as i32 > mon.my + mon.mw as i32 {
+            c.y = mon.my + mon.mw as i32 - c.height() as i32;
+        }
+        c.x = c.x.max(mon.mx);
+        c.y = c.y.max(if mon.by == mon.my && c.x + (c.w/2) as i32 >= mon.wx && c.x + ((c.w/2) as i32) < mon.wx + mon.ww as i32 { self.bh as i32 } else { mon.my });
+        let mut wc = xlib::XWindowChanges {
+            x: 0, y: 0, width:0, height: 0, border_width: c.bw as i32, sibling: 0, stack_mode: 0
+        };
+        unsafe { xlib::XConfigureWindow(self.drw.dpy, w, xlib::CWBorderWidth as u32, &mut wc) };
+        unsafe { xlib::XSetWindowBorder(self.drw.dpy, w, self.scheme[SCHEMENORM].border.pix) };
+        c.configure(self.drw.dpy);
+        c.updatewindowtype(self.drw.dpy, &self.netatom);
+        c.updatesizehints(self.drw.dpy);
+        c.updatewmhints(self.drw.dpy, &self.mons[self.selmonindex]);
+        unsafe { xlib::XSelectInput(self.drw.dpy, w, xlib::EnterWindowMask | xlib::FocusChangeMask | xlib::PropertyChangeMask | xlib::StructureNotifyMask) };
+        // self.grabbuttons(&c, false); TODO
+        if !c.isfloating {
+            c.isfloating = trans != 0 || c.isfixed;
+            c.oldstate = c.isfloating;
+        }
+        if c.isfloating {
+            unsafe { xlib::XRaiseWindow(self.drw.dpy, c.win) };
+        }
+        // TODO
+        unsafe { xlib::XMapWindow(self.drw.dpy, c.win) };
+        // focus(None) TODO
     }
 }
 

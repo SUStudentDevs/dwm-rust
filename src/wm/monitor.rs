@@ -101,7 +101,7 @@ impl<'a> Monitor<'a> {
     /**
      * Finds the Monitor intersecting with a rectangle
      */
-    pub fn from_rect(x: i32, y: i32, w: u32, h: u32, mons: &'a mut Vec<Monitor<'static>>, selmon: &'a mut Monitor<'static>) -> &'a mut Monitor<'static> {
+    pub fn from_rect(x: i32, y: i32, w: u32, h: u32, mons: &'a Vec<Monitor<'a>>, selmon: &'a Monitor<'a>) -> &'a Monitor<'a> {
         let mut area = 0;
         let mut r = selmon;
         for m in mons.into_iter() {
@@ -117,12 +117,15 @@ impl<'a> Monitor<'a> {
     /**
      * Finds the Monitor a Window is on
      */
-    pub fn from_window(w: xlib::Window, root: xlib::Window, mons: &'a mut Vec<Monitor<'static>>, selmon: &'a mut Monitor<'static>) -> &'a mut Monitor<'static> {
+    pub fn from_window(w: xlib::Window, root: xlib::Window, mons: &'a Vec<Monitor<'a>>, selmon: &'a Monitor<'a>) -> &'a Monitor<'a> {
         if w == root && true /* TODO */ {
-            Monitor::from_rect(0, 0, 1, 1, mons, selmon)
-        } else {
-            selmon
+            return Monitor::from_rect(0, 0, 1, 1, mons, selmon);
         }
+        // TODO
+        if let Some(c) = Client::from(w, mons) {
+            return &mons[c.monindex];
+        }
+        selmon
     }
 
     /**

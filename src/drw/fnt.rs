@@ -34,6 +34,7 @@ impl Fnt {
         if let Some(ftn) = fontname {
             let ftn_c = CString::new(ftn).unwrap().as_ptr();
             let xfont = unsafe { xft::XftFontOpenName(drw.dpy, drw.screen, ftn_c) };
+            println!("fontname : {}, xfont: {:?}", ftn, unsafe { (*xfont) });
             if xfont.is_null() {
                 eprintln!("error, cannot load font: {:?}\n", fontname);
                 None

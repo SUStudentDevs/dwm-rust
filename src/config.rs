@@ -1,7 +1,7 @@
 use x11::xlib;
 use x11::keysym::*;
 
-use { Layout, Key, Arg };
+use { Layout, Key, Button, Arg };
 use { tilearrange, monoclearrange, noarrange, gridarrange };
 use { spawn, quit };
 
@@ -51,4 +51,9 @@ pub const keys: [Key; 6] = [
     Key { modif:MODKEY|xlib::ShiftMask, keysym:XF86XK_AudioLowerVolume as u64, func:spawn, arg:Arg {s: "amixer -q sset 'Master' 5%-"}},
     Key { modif:MODKEY|xlib::ShiftMask, keysym:XF86XK_AudioRaiseVolume as u64, func:spawn, arg:Arg {s: "amixer -q sset 'Master' 5%+"}},
     Key { modif:MODKEY|xlib::ShiftMask, keysym:XF86XK_AudioMute as u64, func:spawn, arg:Arg {s: "amixer -q sset 'Master' "}},
+];
+
+/// Buttons and their actions
+pub const buttons: [Button; 0] = [
+
 ];
