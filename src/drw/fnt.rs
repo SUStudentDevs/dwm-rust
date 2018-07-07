@@ -23,42 +23,30 @@ pub struct Fnt {
     pub descent: i32,
     pub h: u32,
     pub xfont: *mut xft::XftFont,
-    pub pattern: *mut xft::FcPattern 
+    pub pattern: *mut xft::FcPattern
 }
 
-impl Fnt {
-    /**
-     * Constructor
-     */
-    pub fn new(drw: &mut Drw, fontname: Option<&str>, fontpattern: Option<xft::FcPattern>) -> Option<Fnt> {
-        if let Some(ftn) = fontname {
-            let ftn_c = CString::new(ftn).unwrap().as_ptr();
-            let xfont = unsafe { xft::XftFontOpenName(drw.dpy, drw.screen, ftn_c) };
-            println!("fontname : {}, xfont: {:?}", ftn, unsafe { (*xfont) });
-            if xfont.is_null() {
+impl PartialEq for Fnt {
+    fn eq(&self, other: &Fnt) -> bool {
+        self.xfont == other.xfont
+    }
+}
+
+/**
+ * Create a new font
+ */
+pub fn createFnt(drw: &mut Drw, fontname: Option<&str>, fontpattern: Option<xft::FcPattern>) -> Option<Fnt> {
+    if let Some(ftn) = fontname {
+        let ftn_c = CString::new(ftn).unwrap().as_ptr();
+        let xfont = unsafe { xft::XftFontOpenName(drw.dpy, drw.screen, ftn_c) };
+        println!("fontname : {}, xfont: {:?}", ftn, unsafe { (*xfont) });
+        if xfont.is_null() {
+            eprintln!("error, cannot load font: {:?}\n", fontname);
+            None
+        } else {
+            let pattern = unsafe { xft::XftNameParse(ftn_c) };
+            if pattern.is_null() {
                 eprintln!("error, cannot load font: {:?}\n", fontname);
-                None
-            } else {
-                let pattern = unsafe { xft::XftNameParse(ftn_c) };
-                if pattern.is_null() {
-                    eprintln!("error, cannot load font: {:?}\n", fontname);
-                    None
-                } else {
-                    unsafe { 
-                        Some(Fnt {
-                            ascent: (*xfont).ascent,
-                            descent: (*xfont).descent,
-                            h: ((*xfont).ascent + (*xfont).descent) as u32,
-                            xfont: xfont,
-                            pattern: pattern
-                        }) 
-                    }
-                }
-            }
-        } else if let Some(mut ftp) = fontpattern {
-            let xfont = unsafe { xft::XftFontOpenPattern((*drw).dpy, &mut ftp) };
-            if !xfont.is_null() {
-                eprintln!("error, cannot load font pattern\n");
                 None
             } else {
                 unsafe {
@@ -67,43 +55,53 @@ impl Fnt {
                         descent: (*xfont).descent,
                         h: ((*xfont).ascent + (*xfont).descent) as u32,
                         xfont: xfont,
-                        pattern: &mut ftp
+                        pattern: pattern
                     })
                 }
             }
-        } else {
-            eprintln!("no font specified\n");
-            process::exit(1);
         }
-    }
-
-    /**
-     * Destructor (frees xfont)
-     */
-    pub fn free(&mut self, dpy: &mut xlib::Display) {
-        unsafe { xft::XftFontClose(dpy, self.xfont) };
-    }
-
-    pub fn getexts(&mut self, dpy: &mut xlib::Display, text: Vec<u8>, tex: &mut Extnts) {
-        let mut ext = xrender::XGlyphInfo { // Dummy value
-            height: 0, width: 0, x: 0, y: 0, xOff: 0, yOff: 0
-        };
-        unsafe { xft::XftTextExtentsUtf8(dpy, self.xfont, text.as_ptr(), text.len() as i32, &mut ext) }
-        tex.h = self.h;
-        tex.w = ext.xOff as u32;
-    }
-
-    pub fn getexts_width(&mut self, dpy: &mut xlib::Display, text: Vec<u8>) -> u32 {
-        let mut tex = Extnts { // Dummy value
-            w: 0, h: 0
-        };
-        self.getexts(dpy, text, &mut tex);
-        tex.w
+    } else if let Some(mut ftp) = fontpattern {
+        let xfont = unsafe { xft::XftFontOpenPattern((*drw).dpy, &mut ftp) };
+        if !xfont.is_null() {
+            eprintln!("error, cannot load font pattern\n");
+            None
+        } else {
+            unsafe {
+                Some(Fnt {
+                    ascent: (*xfont).ascent,
+                    descent: (*xfont).descent,
+                    h: ((*xfont).ascent + (*xfont).descent) as u32,
+                    xfont: xfont,
+                    pattern: &mut ftp
+                })
+            }
+        }
+    } else {
+        eprintln!("no font specified\n");
+        process::exit(1);
     }
 }
 
-impl PartialEq for Fnt {
-    fn eq(&self, other: &Fnt) -> bool {
-        self.xfont == other.xfont
-    }
-}
+// /**
+//  * Destructor (frees xfont)
+//  */
+// pub fn free(&mut self, dpy: &mut xlib::Display) {
+//     unsafe { xft::XftFontClose(dpy, self.xfont) };
+// }
+
+// pub fn getexts(&mut self, dpy: &mut xlib::Display, text: Vec<u8>, tex: &mut Extnts) {
+//     let mut ext = xrender::XGlyphInfo { // Dummy value
+//         height: 0, width: 0, x: 0, y: 0, xOff: 0, yOff: 0
+//     };
+//     unsafe { xft::XftTextExtentsUtf8(dpy, self.xfont, text.as_ptr(), text.len() as i32, &mut ext) }
+//     tex.h = self.h;
+//     tex.w = ext.xOff as u32;
+// }
+
+// pub fn getexts_width(&mut self, dpy: &mut xlib::Display, text: Vec<u8>) -> u32 {
+//     let mut tex = Extnts { // Dummy value
+//         w: 0, h: 0
+//     };
+//     self.getexts(dpy, text, &mut tex);
+//     tex.w
+// }

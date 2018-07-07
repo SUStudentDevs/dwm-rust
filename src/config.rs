@@ -15,7 +15,7 @@ pub const selbordercolor: &str = "#005577";
 pub const selbgcolor: &str = "#005577";
 pub const selfgcolor: &str = "#eeeeee";
 /// Size (in pixels) of window borders
-pub const borderpx: u32 = 2;    
+pub const borderpx: u32 = 2;
 /// Snap pixel
 pub const snap: u32 = 32;
 /// Show the status bar (false means no bar)

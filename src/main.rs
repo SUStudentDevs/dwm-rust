@@ -15,9 +15,8 @@ pub mod drw;
 pub mod config;
 
 use wm::WM;
-use wm::monitor::{ Monitor, Layout };
+use wm::monitor::{ Layout, Monitor };
 use wm::client::Client;
-use drw::Drw;
 
 const VERSION: &str = "0.0.1";
 
@@ -85,7 +84,7 @@ pub struct Pertag<'a> {
     prefzooms: Vec<&'a Client<'a>> // Zoom information
 }
 
-fn main() { 
+fn main() {
     let args: Vec<String> = env::args().collect();
     if args.len()==2 && args[1]==String::from("-v") {
         println!("dwm-rust-{}", ::VERSION);
@@ -100,12 +99,12 @@ fn main() {
         // This is where we'll work
         checkotherwm(dpy);
         let mut wm : WM<'static> = setup(dpy);
-        run(&mut wm); 
-        cleanup(&mut wm);
+        //run(&mut wm);
+        //cleanup(&mut wm);
         unsafe { xlib::XCloseDisplay(wm.drw.dpy) };
     } else {
-        println!("dwm-rust: can't open display"); 
-        process::exit(1); 
+        println!("dwm-rust: can't open display");
+        process::exit(1);
     }
 }
 
@@ -116,27 +115,27 @@ extern "C" fn xerrorstart(_dpy: *mut xlib::Display, _ee: *mut xlib::XErrorEvent)
 }
 
 /// Handles errors. TODO : completer les cas sans erreur
-unsafe extern "C" fn xerror(_dpy: *mut xlib::Display, ee: *mut xlib::XErrorEvent) -> i32 { 
+unsafe extern "C" fn xerror(_dpy: *mut xlib::Display, ee: *mut xlib::XErrorEvent) -> i32 {
     if (*ee).error_code == xlib::BadWindow
     || (*ee).error_code == xlib::BadDrawable
     || (*ee).error_code == xlib::BadMatch
-    || (*ee).error_code == xlib::BadAccess { 
-        0 
+    || (*ee).error_code == xlib::BadAccess {
+        0
     } else {
-        eprintln!("dwm-rust: fatal error: request code={}, error code={}", (*ee).request_code, (*ee).error_code); 
-        process::exit(1); 
-    } 
+        eprintln!("dwm-rust: fatal error: request code={}, error code={}", (*ee).request_code, (*ee).error_code);
+        process::exit(1);
+    }
 }
 
 /**
  * Checks for another WM running. If there is one, prints an error and exits.
  */
-pub fn checkotherwm(dpy: *mut xlib::Display) { 
-    unsafe { 
+pub fn checkotherwm(dpy: *mut xlib::Display) {
+    unsafe {
         xlib::XSetErrorHandler(Some(xerrorstart));
         xlib::XSelectInput(dpy, xlib::XDefaultRootWindow(dpy), xlib::SubstructureRedirectMask);
-        xlib::XSync(dpy, 0); xlib::XSetErrorHandler(Some(xerror)); xlib::XSync(dpy, 0); 
-    } 
+        xlib::XSync(dpy, 0); xlib::XSetErrorHandler(Some(xerror)); xlib::XSync(dpy, 0);
+    }
 }
 
 /**
@@ -147,42 +146,40 @@ pub fn setup(dpy: &mut xlib::Display) -> WM {
     let sw = unsafe { xlib::XDisplayWidth(dpy, screen) } as u32;
     let sh = unsafe { xlib::XDisplayHeight(dpy, screen) } as u32;
     let root = unsafe { xlib::XRootWindow(dpy, screen) };
-    let mut drw = Drw::new(dpy, screen, root, sw, sh);
+    let mut drw = drw::createDrw(dpy, screen, root, sw, sh);
 
-    drw.load_fonts(config::fonts.to_vec());
+    // drw.load_fonts(config::fonts.to_vec());
     if drw.fonts.len()<1 {
         eprintln!("no fonts could be loaded.\n");
         process::exit(1);
     }
 
-    let mut wm = WM::new(drw, screen, root, sw, sh);
-    wm.updategeom();
-    wm.updatebars();
-    wm.updatestatus();
+    let mut wm = wm::initWm(drw, screen, root, sw, sh);
+    //let mut wm = wm::updatestatus(wm::updatebars(wm::updategeom(wm::initWm(drw, screen, root, sw, sh))));
     unsafe {
         xlib::XChangeProperty(wm.drw.dpy, wm.root, wm.netatom[NETSUPPORTED], xlib::XA_ATOM, 32, xlib::PropModeReplace, &(wm.netatom[0] as u8), NETLAST as i32);
-        xlib::XDeleteProperty(wm.drw.dpy, wm.root, wm.netatom[NETCLIENTLIST]); 
+        xlib::XDeleteProperty(wm.drw.dpy, wm.root, wm.netatom[NETCLIENTLIST]);
         xlib::XChangeWindowAttributes(wm.drw.dpy, wm.root, xlib::CWEventMask|xlib::CWCursor, &mut xlib::XSetWindowAttributes {
             background_pixmap: 0,
-            background_pixel: 0, 
-            border_pixmap: xlib::CopyFromParent as u64, 
-            border_pixel: 0, 
-            bit_gravity: xlib::ForgetGravity, 
-            win_gravity: xlib::NorthWestGravity, 
-            backing_store: xlib::NotUseful, 
-            backing_planes: 1, 
-            backing_pixel: 0, 
+            background_pixel: 0,
+            border_pixmap: xlib::CopyFromParent as u64,
+            border_pixel: 0,
+            bit_gravity: xlib::ForgetGravity,
+            win_gravity: xlib::NorthWestGravity,
+            backing_store: xlib::NotUseful,
+            backing_planes: 1,
+            backing_pixel: 0,
             save_under: 0,
             event_mask: xlib::SubstructureRedirectMask|xlib::SubstructureNotifyMask|xlib::ButtonPressMask|xlib::PointerMotionMask|xlib::EnterWindowMask|xlib::LeaveWindowMask|xlib::StructureNotifyMask|xlib::PropertyChangeMask,
         do_not_propagate_mask: 0,
             override_redirect: 0,
-            colormap: xlib::CopyFromParent as u64, 
+            colormap: xlib::CopyFromParent as u64,
             cursor: wm.cursor[CURNORMAL].cursor
         });
     }
-    wm.grabkeys();
     // focus(None); TODO
     wm
+    //wm::grabkeys(wm);
 }
 
 pub fn isuniquegeom(unique: &Vec<xinerama::XineramaScreenInfo>, n: usize, info: &xinerama::XineramaScreenInfo) -> bool {
@@ -194,144 +191,144 @@ pub fn isuniquegeom(unique: &Vec<xinerama::XineramaScreenInfo>, n: usize, info: 
     true
 }
 
-/**
- * Main program loop
- */
-pub fn run(wm: &mut WM) {
-    let ev = &mut xlib::XEvent { any: xlib::XAnyEvent { type_: 0, serial: 0, send_event: 0, display: wm.drw.dpy, window: wm.root } }; // Dummy value
-    unsafe {
-        xlib::XSync(wm.drw.dpy, 0);
-        while wm.running && xlib::XNextEvent(wm.drw.dpy, ev) == 0 {
-            handleevent(wm, ev);
-        }
-    }
-}
+// /**
+//  * Main program loop
+//  */
+// pub fn run(wm: &mut WM) {
+//     let ev = &mut xlib::XEvent { any: xlib::XAnyEvent { type_: 0, serial: 0, send_event: 0, display: wm.drw.dpy, window: wm.root } }; // Dummy value
+//     unsafe {
+//         xlib::XSync(wm.drw.dpy, 0);
+//         while wm.running && xlib::XNextEvent(wm.drw.dpy, ev) == 0 {
+//             handleevent(wm, ev);
+//         }
+//     }
+// }
 
-/**
- * Handles an event
- */
-pub fn handleevent(wm: &mut WM, ev: &xlib::XEvent) {
-    unsafe {
-        match ev.type_ {
-            xlib::ButtonPress => buttonpress(wm, ev),
-            xlib::ConfigureRequest => configurerequest(wm, ev),
-            xlib::EnterNotify => enternotify(wm, ev),
-            xlib::KeyPress => keypress(wm, ev),
-            xlib::MapRequest => maprequest(wm, ev),
-            // TODO : les autres handlers
-            _ => ()
-        }
-    }
-}
+// /**
+//  * Handles an event
+//  */
+// pub fn handleevent(wm: &mut WM, ev: &xlib::XEvent) {
+//     unsafe {
+//         match ev.type_ {
+//             xlib::ButtonPress => buttonpress(wm, ev),
+//             xlib::ConfigureRequest => configurerequest(wm, ev),
+//             xlib::EnterNotify => enternotify(wm, ev),
+//             xlib::KeyPress => keypress(wm, ev),
+//             xlib::MapRequest => maprequest(wm, ev),
+//             // TODO : les autres handlers
+//             _ => ()
+//         }
+//     }
+// }
 
-/**
- * Handles a ButtonPress event
- */
-pub fn buttonpress(wm: &mut WM, e: &xlib::XEvent) {
-    let arg = Arg {i: 0};
-    let ev = unsafe { e.button };
-    // click = CLKROOTWIN;
-    // let m = wintomon(ev.window);
-    // TODO
-}
+// /**
+//  * Handles a ButtonPress event
+//  */
+// pub fn buttonpress(wm: &mut WM, e: &xlib::XEvent) {
+//     let arg = Arg {i: 0};
+//     let ev = unsafe { e.button };
+//     // click = CLKROOTWIN;
+//     // let m = wintomon(ev.window);
+//     // TODO
+// }
 
-/**
- * Handles a ConfigureRequest event
- */
-pub fn configurerequest(wm: &mut WM, e: &xlib::XEvent) {
-    let ev = unsafe { e.configure_request };
-    if Client::from(ev.window, &wm.mons) == None {
-        let mut wc = xlib::XWindowChanges {
-            x: ev.x, y: ev.y,
-            width: ev.width, height: ev.height,
-            border_width: ev.border_width,
-            sibling: ev.above,
-            stack_mode: ev.detail
-        };
-        unsafe { xlib::XConfigureWindow(wm.drw.dpy, ev.window, ev.value_mask as u32, &mut wc) };
-    } else {
-        for m in wm.mons.iter_mut() {
-            for c in m.clients.iter_mut() {
-                if c.win == ev.window {
-                    if ev.value_mask & xlib::CWBorderWidth as u64 != 0 {
-                        c.bw = ev.border_width as u32;
-                    } else if c.isfloating /*|| !(wm.selmon.lt[wm.selmon.sellt as usize].arrange) TODO*/ {
-                    // let m = &mut wm.mons[c.monindex];
-                    // TODO
-                    } else {
-                        c.configure(wm.drw.dpy);
-                    }
-                }
-            }
-        }
-    }
-    unsafe { xlib::XSync(wm.drw.dpy, 0) };
-}
+// /**
+//  * Handles a ConfigureRequest event
+//  */
+// pub fn configurerequest(wm: &mut WM, e: &xlib::XEvent) {
+//     let ev = unsafe { e.configure_request };
+//     if Client::from(ev.window, &wm.mons) == None {
+//         let mut wc = xlib::XWindowChanges {
+//             x: ev.x, y: ev.y,
+//             width: ev.width, height: ev.height,
+//             border_width: ev.border_width,
+//             sibling: ev.above,
+//             stack_mode: ev.detail
+//         };
+//         unsafe { xlib::XConfigureWindow(wm.drw.dpy, ev.window, ev.value_mask as u32, &mut wc) };
+//     } else {
+//         for m in wm.mons.iter_mut() {
+//             for c in m.clients.iter_mut() {
+//                 if c.win == ev.window {
+//                     if ev.value_mask & xlib::CWBorderWidth as u64 != 0 {
+//                         c.bw = ev.border_width as u32;
+//                     } else if c.isfloating /*|| !(wm.selmon.lt[wm.selmon.sellt as usize].arrange) TODO*/ {
+//                     // let m = &mut wm.mons[c.monindex];
+//                     // TODO
+//                     } else {
+//                         c.configure(wm.drw.dpy);
+//                     }
+//                 }
+//             }
+//         }
+//     }
+//     unsafe { xlib::XSync(wm.drw.dpy, 0) };
+// }
 
-/**
- * Handles an EnterNotify event
- */
-pub fn enternotify(wm: &mut WM, e: &xlib::XEvent) {
-    let ev = unsafe { e.crossing };
-    if (ev.mode != xlib::NotifyNormal || ev.detail == xlib::NotifyInferior) && ev.window != wm.root {
-        return;
-    }
-    let mut c = Client::from(ev.window, &wm.mons);
-    let m = if let Some(ref mut cl) = c {
-        &wm.mons[cl.monindex]
-    } else {
-        Monitor::from_window(ev.window, wm.root, &wm.mons, &wm.mons[wm.selmonindex])
-    };
-    if m != &wm.mons[wm.selmonindex] {
-        // unfocus(selmon.sel, true); TODO
-        wm.selmonindex = m.num as usize;
-    } else {
-        let mut c = Client::from(ev.window, &wm.mons);
-        let selmon = &wm.mons[wm.selmonindex];
-        match (c, selmon.sel) {
-            (None, _) => return,
-            (Some(cl), Some(sel)) => if cl == sel { return },
-            _ => ()
-        }
-    }
-    if let Some(cl) = c {
-        // focus(cl); TODO
-    }
-}
+// /**
+//  * Handles an EnterNotify event
+//  */
+// pub fn enternotify(wm: &mut WM, e: &xlib::XEvent) {
+//     let ev = unsafe { e.crossing };
+//     if (ev.mode != xlib::NotifyNormal || ev.detail == xlib::NotifyInferior) && ev.window != wm.root {
+//         return;
+//     }
+//     let mut c = Client::from(ev.window, &wm.mons);
+//     let m = if let Some(ref mut cl) = c {
+//         &wm.mons[cl.monindex]
+//     } else {
+//         Monitor::from_window(ev.window, wm.root, &wm.mons, &wm.mons[wm.selmonindex])
+//     };
+//     if m != &wm.mons[wm.selmonindex] {
+//         // unfocus(selmon.sel, true); TODO
+//         wm.selmonindex = m.num as usize;
+//     } else {
+//         let mut c = Client::from(ev.window, &wm.mons);
+//         let selmon = &wm.mons[wm.selmonindex];
+//         match (c, selmon.sel) {
+//             (None, _) => return,
+//             (Some(cl), Some(sel)) => if cl == sel { return },
+//             _ => ()
+//         }
+//     }
+//     if let Some(cl) = c {
+//         // focus(cl); TODO
+//     }
+// }
 
-/**
- * Handles a KeyPress event
- */
-pub fn keypress(wm: &mut WM, e: &xlib::XEvent) {
-    let ev = unsafe { e.key };
-    let keysym = unsafe { xlib::XKeycodeToKeysym(wm.drw.dpy, ev.keycode as u8, 0) };
-    for i in 0..config::keys.len() {
-        if keysym == config::keys[i].keysym
-        && cleanmask(ev.state) == cleanmask(config::keys[i].modif) {
-            let func = config::keys[i].func;
-            func(&config::keys[i].arg, wm);
-        }
-    }
-}
+// /**
+//  * Handles a KeyPress event
+//  */
+// pub fn keypress(wm: &mut WM, e: &xlib::XEvent) {
+//     let ev = unsafe { e.key };
+//     let keysym = unsafe { xlib::XKeycodeToKeysym(wm.drw.dpy, ev.keycode as u8, 0) };
+//     for i in 0..config::keys.len() {
+//         if keysym == config::keys[i].keysym
+//         && cleanmask(ev.state) == cleanmask(config::keys[i].modif) {
+//             let func = config::keys[i].func;
+//             func(&config::keys[i].arg, wm);
+//         }
+//     }
+// }
 
-/**
- * Handles a MapRequest event
- */
-pub fn maprequest(wm: &mut WM, e: &xlib::XEvent) {
-    let ev = unsafe { e.map_request };
-    let mut wa = xlib::XWindowAttributes { // Dummy value
-        x: 0, y: 0, width: 0, height: 0, border_width: 0, depth: 0, visual: ptr::null_mut(), root: wm.root, class: 0, bit_gravity: 0, win_gravity: 0, backing_store: 0, backing_planes: 0, backing_pixel: 0, save_under: 0, colormap: 0, map_installed: 0, map_state: 0, all_event_masks: 0, your_event_mask: 0, do_not_propagate_mask: 0, override_redirect: 0, screen: ptr::null_mut()
-    };
-    if unsafe { xlib::XGetWindowAttributes(wm.drw.dpy, ev.window, &mut wa) == 0 } {
-        return;
-    }
-    if wa.override_redirect != 0 {
-        return;
-    }
-    if Client::from(ev.window, &mut wm.mons) == None {
-        wm.manage(ev.window, &wa);
-    }
-}
+// /**
+//  * Handles a MapRequest event
+//  */
+// pub fn maprequest(wm: &mut WM, e: &xlib::XEvent) {
+//     let ev = unsafe { e.map_request };
+//     let mut wa = xlib::XWindowAttributes { // Dummy value
+//         x: 0, y: 0, width: 0, height: 0, border_width: 0, depth: 0, visual: ptr::null_mut(), root: wm.root, class: 0, bit_gravity: 0, win_gravity: 0, backing_store: 0, backing_planes: 0, backing_pixel: 0, save_under: 0, colormap: 0, map_installed: 0, map_state: 0, all_event_masks: 0, your_event_mask: 0, do_not_propagate_mask: 0, override_redirect: 0, screen: ptr::null_mut()
+//     };
+//     if unsafe { xlib::XGetWindowAttributes(wm.drw.dpy, ev.window, &mut wa) == 0 } {
+//         return;
+//     }
+//     if wa.override_redirect != 0 {
+//         return;
+//     }
+//     if Client::from(ev.window, &mut wm.mons) == None {
+//         wm.manage(ev.window, &wa);
+//     }
+// }
 
 /**
  * Execute a shell command
