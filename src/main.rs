@@ -155,7 +155,7 @@ pub fn setup(dpy: &mut xlib::Display) -> WM {
         process::exit(1);
     }
 
-    let mut wm = wm::updateStatus(wm::updateBars(wm::updateGeom(wm::initWm(drw, screen, root, sw, sh))));
+    let mut wm = wm::updateStatus(wm::updateBars(wm::createWorkspaces(wm::initWm(drw, screen, root, sw, sh))));
     unsafe {
         xlib::XChangeProperty(wm.drw.dpy, wm.root, wm.netatom[NETSUPPORTED], xlib::XA_ATOM, 32, xlib::PropModeReplace, &(wm.netatom[0] as u8), NETLAST as i32);
         xlib::XDeleteProperty(wm.drw.dpy, wm.root, wm.netatom[NETCLIENTLIST]);

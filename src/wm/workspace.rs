@@ -133,12 +133,12 @@ pub fn drawBar<'a>(drw: Drw<'a>, bh: u32, scheme: &Vec<ClrScheme>, wss: &Vec<Wor
 //     }
 
     // Draw list of workspaces, with their tags
-    let (drw, _) = config::tags.iter().enumerate().fold((drw, 0), |(drw, x), (i, t)| {
-        let w = drw::textw(t, &drw);
+    let (drw, _) = wss.iter().enumerate().fold((drw, 0), |(drw, x), (i, ws)| {
+        let (drw, w) = drw::textw(ws.tag, drw);
         let (drw, _) = drw::text(if i == selmonindex { drw::setScheme(drw, &scheme[SCHEMESEL]) }
                                  else { drw::setScheme(drw, &scheme[SCHEMENORM]) },
-                                 x, 1, w, bh, t, urg & (1 << i) != 0);
-        let drw = if wss[0].clients.len() > 0 {
+                                 x, 1, w, bh, ws.tag, urg & (1 << i) != 0);
+        let drw = if ws.clients.len() > 0 {
             drw::rect(drw, x + 1, 1, dx, dx, i == selmonindex, occ & (1 << i) != 0)
         }
         else { drw };

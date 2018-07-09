@@ -180,9 +180,11 @@ pub fn text<'a>(drw: Drw<'a>, mut x: i32, y: i32, mut w:u32, h:u32, text: &str, 
 /**
  * Width of a text
  */
-pub fn textw(s: &str, drw: &Drw) -> u32 {
-    // drw.text(0, 0, 0, 0, s, false) as u32 +
-    drw.fonts[0].h
+pub fn textw<'a>(s: &str, drw: Drw<'a>) -> (Drw<'a>, u32) {
+    let (drw, w) = text(drw, 0, 0, 0, 0, s, false);
+    let h = drw.fonts[0].h;
+    println!("w : {}", w);
+    (drw, w as u32 + h + 10)
 }
 
 /**

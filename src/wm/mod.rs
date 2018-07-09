@@ -3,7 +3,6 @@ extern crate x11;
 use std::ffi::CString;
 
 use x11::xlib;
-use x11::xinerama;
 use x11::keysym;
 
 /// Workspace module
@@ -31,12 +30,12 @@ pub struct WM<'a> {
     pub netatom: Vec<xlib::Atom>,
     pub cursor: Vec<Cur>,
     pub scheme: Vec<ClrScheme>,
-    pub mons: Vec<Workspace<'a>>,
-    pub selmonindex: usize,
+    pub wss: Vec<Workspace<'a>>,
+    pub selwsindex: usize,
     pub sw: u32, sh: u32,
     pub bh: u32,
     pub stext: String,
-    pub numlockmask: u32
+    pub numlockmask: u32,
 }
 
 /**
@@ -52,8 +51,8 @@ pub fn initWm(drw: Drw, screen: i32, root: u64, sw: u32, sh: u32) -> WM {
         netatom: Vec::new(),
         cursor: Vec::new(),
         scheme: Vec::new(),
-        mons: Vec::new(),
-        selmonindex: 0,
+        wss: Vec::new(),
+        selwsindex: 0,
         sw, sh,
         bh: 0,
         stext: String::from("dwm-rust"),
@@ -92,73 +91,22 @@ pub fn initWm(drw: Drw, screen: i32, root: u64, sw: u32, sh: u32) -> WM {
 }
 
 /**
- * Updates the geometry
+ * Create all the workspaces and set their data
  */
-pub fn updateGeom(wm: WM) -> WM {
+pub fn createWorkspaces(wm: WM) -> WM {
     let mut wm = wm;
-    if unsafe { xinerama::XineramaIsActive(wm.drw.dpy) != 0 } {
-        let n = wm.mons.len();
-        let mut nn: i32 = 0;
-        let mut unique = Vec::new();
-        let info = unsafe { xinerama::XineramaQueryScreens(wm.drw.dpy, &mut nn) };
-        let info = unsafe { Vec::from_raw_parts(info, nn as usize, nn as usize) };
-
-
-        for _ in 0..nn {
-            unique.push(xinerama::XineramaScreenInfo { // Dummy value
-                height: 0, width: 0, screen_number: 0, x_org: 0, y_org: 0
-            });
+    if wm.wss.is_empty() {
+        return WM {
+            wss:config::tags.iter().map(|t| {
+                let ws = workspace::createWorkspace(t);
+                workspace::updateBarPos(workspace::Workspace {
+                    w: wm.sw, h: wm.sh,
+                    ..ws
+                }, wm.bh)
+            }).collect(),
+            selwsindex: 4,
+            ..wm
         }
-        let j = 0;
-        for i in 0..nn {
-            if isuniquegeom(&unique, j, &info[i as usize]) {
-                j+1;
-                unique[j] = info[i as usize].clone();
-            }
-        }
-        // xlib::XFree(info); // TODO
-        nn = unique.len() as i32;
-        if n <= nn as usize { // More physical workspaces than Workspace in the wm : lets create new Workspaces !
-            for _ in 0..(nn-n as i32) {
-                wm.mons.push(workspace::createWorkspace("1"));
-            }
-            for i in n..unique.len().min(wm.mons.len()) { // And lets update their data
-                if unique[i].x_org as i32 != wm.mons[i].x
-                    || unique[i].y_org as i32 != wm.mons[i].y
-                    || unique[i].width as u32 != wm.mons[i].w
-                    || unique[i].height as u32 != wm.mons[i].h {
-                        wm.mons[i].num = i as i32;
-                        //wm.mons[i].mx = unique[i].x_org as i32;
-                        wm.mons[i].x = unique[i].x_org as i32;
-                        //wm.mons[i].my = unique[i].y_org as i32;
-                        wm.mons[i].y = unique[i].y_org as i32;
-                        //wm.mons[i].mw = unique[i].width as u32;
-                        wm.mons[i].w = unique[i].width as u32;
-                        //wm.mons[i].mh = unique[i].height as u32;
-                        wm.mons[i].h = unique[i].height as u32;
-                        //wm.mons[i].updatebarpos(wm.bh);
-                    }
-            }
-        } else { // Else, we're going to have to destroy workspaces :(
-
-        }
-    } else {
-        if wm.mons.is_empty() {
-            let ws = workspace::createWorkspace("1");
-            let ws = workspace::Workspace {
-                w: wm.sw, h: wm.sh,
-                ..ws
-            };
-            wm.mons.push(workspace::updateBarPos(ws, wm.bh));
-            return WM { selmonindex: 0, ..wm }
-        }
-        // let m = &mut wm.mons[0];
-        // if m.ww != wm.sw {
-        //     dirty = true;
-        //     m.mw = wm.sw; m.ww = wm.sw;
-        //     m.mh = wm.sh; m.wh = wm.sh;
-        //     m.updatebarpos(wm.bh);
-        // }
     }
     wm
 }
@@ -185,21 +133,22 @@ pub fn updateBars(wm: WM) -> WM {
         colormap: xlib::CopyFromParent as u64,
         cursor: 0
     };
-    for mut m in wm.mons.iter_mut() {
-        if m.barwin == 0 {
-            m.barwin = unsafe {
-                xlib::XCreateWindow(wm.drw.dpy,
-                                    wm.root,
-                                    m.x, m.by, m.w as u32,
-                                    wm.bh,
-                                    0,
-                                    xlib::XDefaultDepth(wm.drw.dpy, wm.screen),
-                                    xlib::CopyFromParent as u32,
-                                    xlib::XDefaultVisual(wm.drw.dpy, wm.screen),
-                                    xlib::CWOverrideRedirect|xlib::CWBackPixmap|xlib::CWEventMask,
-                                    &mut wa) };
-            unsafe { xlib::XDefineCursor(wm.drw.dpy, m.barwin, wm.cursor[CURNORMAL].cursor) };
-            unsafe { xlib::XMapRaised(wm.drw.dpy, m.barwin) };
+    if wm.wss[0].barwin == 0 {
+        let barwin = unsafe {
+            xlib::XCreateWindow(wm.drw.dpy,
+                                wm.root,
+                                wm.wss[0].x, wm.wss[0].by, wm.wss[0].w as u32,
+                                wm.bh,
+                                0,
+                                xlib::XDefaultDepth(wm.drw.dpy, wm.screen),
+                                xlib::CopyFromParent as u32,
+                                xlib::XDefaultVisual(wm.drw.dpy, wm.screen),
+                                xlib::CWOverrideRedirect|xlib::CWBackPixmap|xlib::CWEventMask,
+                                &mut wa) };
+        unsafe { xlib::XDefineCursor(wm.drw.dpy, barwin, wm.cursor[CURNORMAL].cursor) };
+        unsafe { xlib::XMapRaised(wm.drw.dpy, barwin) };
+        for ws in wm.wss.iter_mut() {
+            if ws.barwin == 0 { ws.barwin = barwin };
         }
     }
     wm
@@ -210,7 +159,7 @@ pub fn updateBars(wm: WM) -> WM {
  */
 pub fn updateStatus(wm: WM) -> WM{
     // if(...) TODO
-    WM {drw: workspace::drawBar(wm.drw, wm.bh, &wm.scheme, &wm.mons, wm.selmonindex, &wm.stext[..]), ..wm}
+    WM {drw: workspace::drawBar(wm.drw, wm.bh, &wm.scheme, &wm.wss, wm.selwsindex, &wm.stext[..]), ..wm}
 }
 
 /**
@@ -270,7 +219,7 @@ fn updatenumlockmask(wm: WM) -> WM {
  * Manage a new Window
  */
 pub fn manage<'a>(wm: WM<'a>, w: xlib::Window, wa: &xlib::XWindowAttributes) -> WM<'a> {
-    let c = client::createClient(w, wa, wm.selmonindex);
+    let c = client::createClient(w, wa, wm.selwsindex);
     // c.updatetitle();
     // let mut trans = 0;
     // if unsafe { xlib::XGetTransientForHint(wm.drw.dpy, w, &mut trans) } != 0 {
