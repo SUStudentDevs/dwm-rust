@@ -1,3 +1,6 @@
+#![allow(non_upper_case_globals)]
+#![allow(non_snake_case)]
+
 extern crate x11;
 
 use std::env;
@@ -15,7 +18,7 @@ pub mod drw;
 pub mod config;
 
 use wm::WM;
-use wm::monitor::{ Layout, Monitor };
+use wm::workspace::{ Layout, Workspace };
 use wm::client::Client;
 
 const VERSION: &str = "0.0.1";
@@ -98,9 +101,7 @@ fn main() {
     } if let Some(dpy) = Some( unsafe { &mut(*xlib::XOpenDisplay(ptr::null())) }) {
         // This is where we'll work
         checkotherwm(dpy);
-        let mut wm : WM<'static> = setup(dpy);
-        //run(&mut wm);
-        //cleanup(&mut wm);
+        let wm = cleanup(run(setup(dpy)));
         unsafe { xlib::XCloseDisplay(wm.drw.dpy) };
     } else {
         println!("dwm-rust: can't open display");
@@ -146,16 +147,15 @@ pub fn setup(dpy: &mut xlib::Display) -> WM {
     let sw = unsafe { xlib::XDisplayWidth(dpy, screen) } as u32;
     let sh = unsafe { xlib::XDisplayHeight(dpy, screen) } as u32;
     let root = unsafe { xlib::XRootWindow(dpy, screen) };
-    let mut drw = drw::createDrw(dpy, screen, root, sw, sh);
+    let drw = drw::createDrw(dpy, screen, root, sw, sh);
 
-    // drw.load_fonts(config::fonts.to_vec());
+    let drw = drw::loadFonts(drw, config::fonts.to_vec());
     if drw.fonts.len()<1 {
         eprintln!("no fonts could be loaded.\n");
         process::exit(1);
     }
 
-    let mut wm = wm::initWm(drw, screen, root, sw, sh);
-    //let mut wm = wm::updatestatus(wm::updatebars(wm::updategeom(wm::initWm(drw, screen, root, sw, sh))));
+    let mut wm = wm::updateStatus(wm::updateBars(wm::updateGeom(wm::initWm(drw, screen, root, sw, sh))));
     unsafe {
         xlib::XChangeProperty(wm.drw.dpy, wm.root, wm.netatom[NETSUPPORTED], xlib::XA_ATOM, 32, xlib::PropModeReplace, &(wm.netatom[0] as u8), NETLAST as i32);
         xlib::XDeleteProperty(wm.drw.dpy, wm.root, wm.netatom[NETCLIENTLIST]);
@@ -191,18 +191,21 @@ pub fn isuniquegeom(unique: &Vec<xinerama::XineramaScreenInfo>, n: usize, info: 
     true
 }
 
-// /**
-//  * Main program loop
-//  */
-// pub fn run(wm: &mut WM) {
-//     let ev = &mut xlib::XEvent { any: xlib::XAnyEvent { type_: 0, serial: 0, send_event: 0, display: wm.drw.dpy, window: wm.root } }; // Dummy value
-//     unsafe {
-//         xlib::XSync(wm.drw.dpy, 0);
-//         while wm.running && xlib::XNextEvent(wm.drw.dpy, ev) == 0 {
-//             handleevent(wm, ev);
-//         }
-//     }
-// }
+/**
+ * Main program loop
+ */
+pub fn run(wm: WM) -> WM {
+    let ev = &mut xlib::XEvent { any: xlib::XAnyEvent { type_: 0, serial: 0, send_event: 0, display: wm.drw.dpy, window: wm.root } }; // Dummy value
+    let mut wm = wm;
+    unsafe {
+        xlib::XSync(wm.drw.dpy, 0);
+        println!("Salut les amis");
+        while wm.running && xlib::XNextEvent(wm.drw.dpy, ev) == 0 {
+            wm = wm //handleevent(wm, ev);
+        }
+    }
+    wm
+}
 
 // /**
 //  * Handles an event
@@ -277,7 +280,7 @@ pub fn isuniquegeom(unique: &Vec<xinerama::XineramaScreenInfo>, n: usize, info: 
 //     let m = if let Some(ref mut cl) = c {
 //         &wm.mons[cl.monindex]
 //     } else {
-//         Monitor::from_window(ev.window, wm.root, &wm.mons, &wm.mons[wm.selmonindex])
+//         Workspace::from_window(ev.window, wm.root, &wm.mons, &wm.mons[wm.selmonindex])
 //     };
 //     if m != &wm.mons[wm.selmonindex] {
 //         // unfocus(selmon.sel, true); TODO
@@ -350,25 +353,26 @@ pub fn quit(_: &Arg, wm: &mut WM) {
 }
 
 // Arrange functions
-fn tilearrange(monitor: &Monitor) {
+fn tilearrange(workspace: &Workspace) {
     // TODO
 }
 
-fn monoclearrange(monitor: &Monitor) {
+fn monoclearrange(workspace: &Workspace) {
     // TODO
 }
 
-fn noarrange(monitor: &Monitor) {
+fn noarrange(workspace: &Workspace) {
     // Nothing
 }
 
-fn gridarrange(monitor: &Monitor) {
+fn gridarrange(workspace: &Workspace) {
     // TODO
 }
 
 /**
  * Cleanup and free memory
  */
-fn cleanup(wm: &mut WM) {
+fn cleanup(wm: WM) -> WM {
     // TODO
+    wm
 }

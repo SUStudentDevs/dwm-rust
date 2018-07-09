@@ -6,7 +6,7 @@ use { tilearrange, monoclearrange, noarrange, gridarrange };
 use { spawn, quit };
 
 /// Fonts (the first one available is used)
-pub const fonts: [&str; 1] = ["Fixed:size=9"];
+pub const fonts: [&str; 1] = ["Fixed:size=11"];
 
 pub const normbordercolor: &str = "#444444";
 pub const normbgcolor: &str = "#222222";

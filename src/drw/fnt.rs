@@ -33,18 +33,17 @@ impl PartialEq for Fnt {
 }
 
 /**
- * Create a new font
+ * Add a new font
  */
-pub fn createFnt(drw: &mut Drw, fontname: Option<&str>, fontpattern: Option<xft::FcPattern>) -> Option<Fnt> {
+pub fn createFont(dpy: &mut xlib::Display, screen: i32, fontname: Option<&str>, fontpattern: Option<xft::FcPattern>) -> Option<Fnt>{
     if let Some(ftn) = fontname {
-        let ftn_c = CString::new(ftn).unwrap().as_ptr();
-        let xfont = unsafe { xft::XftFontOpenName(drw.dpy, drw.screen, ftn_c) };
-        println!("fontname : {}, xfont: {:?}", ftn, unsafe { (*xfont) });
+        let ftn_c = CString::new(ftn).unwrap();
+        let xfont = unsafe { xft::XftFontOpenName(dpy, screen, ftn_c.as_ptr()) };
         if xfont.is_null() {
             eprintln!("error, cannot load font: {:?}\n", fontname);
             None
         } else {
-            let pattern = unsafe { xft::XftNameParse(ftn_c) };
+            let pattern = unsafe { xft::XftNameParse(ftn_c.as_ptr()) };
             if pattern.is_null() {
                 eprintln!("error, cannot load font: {:?}\n", fontname);
                 None
@@ -61,7 +60,7 @@ pub fn createFnt(drw: &mut Drw, fontname: Option<&str>, fontpattern: Option<xft:
             }
         }
     } else if let Some(mut ftp) = fontpattern {
-        let xfont = unsafe { xft::XftFontOpenPattern((*drw).dpy, &mut ftp) };
+        let xfont = unsafe { xft::XftFontOpenPattern(dpy, &mut ftp) };
         if !xfont.is_null() {
             eprintln!("error, cannot load font pattern\n");
             None
@@ -82,12 +81,12 @@ pub fn createFnt(drw: &mut Drw, fontname: Option<&str>, fontpattern: Option<xft:
     }
 }
 
-// /**
-//  * Destructor (frees xfont)
-//  */
-// pub fn free(&mut self, dpy: &mut xlib::Display) {
-//     unsafe { xft::XftFontClose(dpy, self.xfont) };
-// }
+/**
+ * Destructor (frees xfont)
+ */
+pub fn freeFnt(fnt: Fnt, dpy: &mut xlib::Display) {
+    unsafe { xft::XftFontClose(dpy, fnt.xfont) };
+}
 
 // pub fn getexts(&mut self, dpy: &mut xlib::Display, text: Vec<u8>, tex: &mut Extnts) {
 //     let mut ext = xrender::XGlyphInfo { // Dummy value

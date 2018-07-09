@@ -6,13 +6,13 @@ use x11::xlib;
 use x11::xinerama;
 use x11::keysym;
 
-/// Monitor module
-pub mod monitor;
+/// Workspace module
+pub mod workspace;
 /// Client module
 pub mod client;
 
 use { CURNORMAL, SCHEMENORM, isuniquegeom };
-use self::monitor::Monitor;
+use wm::workspace::Workspace;
 use drw;
 use drw::{ Drw, Cur };
 use drw::clrscheme;
@@ -31,7 +31,7 @@ pub struct WM<'a> {
     pub netatom: Vec<xlib::Atom>,
     pub cursor: Vec<Cur>,
     pub scheme: Vec<ClrScheme>,
-    pub mons: Vec<Monitor<'a>>,
+    pub mons: Vec<Workspace<'a>>,
     pub selmonindex: usize,
     pub sw: u32, sh: u32,
     pub bh: u32,
@@ -91,150 +91,153 @@ pub fn initWm(drw: Drw, screen: i32, root: u64, sw: u32, sh: u32) -> WM {
     wm
 }
 
-// /**
-//  * Updates the geometry
-//  */
-// pub fn updategeom(&mut self) -> bool {
-//     let mut dirty = false;
-//     if unsafe { xinerama::XineramaIsActive(self.drw.dpy) != 0 } {
-//         let n = self.mons.len();
-//         let mut nn: i32 = 0;
-//         let mut unique = Vec::new();
-//         let info = unsafe { xinerama::XineramaQueryScreens(self.drw.dpy, &mut nn) };
-//         let info = unsafe { Vec::from_raw_parts(info, nn as usize, nn as usize) };
+/**
+ * Updates the geometry
+ */
+pub fn updateGeom(wm: WM) -> WM {
+    let mut wm = wm;
+    if unsafe { xinerama::XineramaIsActive(wm.drw.dpy) != 0 } {
+        let n = wm.mons.len();
+        let mut nn: i32 = 0;
+        let mut unique = Vec::new();
+        let info = unsafe { xinerama::XineramaQueryScreens(wm.drw.dpy, &mut nn) };
+        let info = unsafe { Vec::from_raw_parts(info, nn as usize, nn as usize) };
 
 
-//         for _ in 0..nn {
-//             unique.push(xinerama::XineramaScreenInfo { // Dummy value
-//                 height: 0, width: 0, screen_number: 0, x_org: 0, y_org: 0
-//             });
-//         }
-//         let j = 0;
-//         for i in 0..nn {
-//             if isuniquegeom(&unique, j, &info[i as usize]) {
-//                 j+1;
-//                 unique[j] = info[i as usize].clone();
-//             }
-//         }
-//         // xlib::XFree(info); // TODO
-//         nn = unique.len() as i32;
-//         if n <= nn as usize { // More physical monitors than Monitor in the wm : lets create new Monitors !
-//             for _ in 0..(nn-n as i32) {
-//                 self.mons.push(Monitor::new());
-//             }
-//             for i in n..unique.len().min(self.mons.len()) { // And lets update their data
-//                 if unique[i].x_org as i32 != self.mons[i].wx
-//                     || unique[i].y_org as i32 != self.mons[i].wy
-//                     || unique[i].width as u32 != self.mons[i].mw
-//                     || unique[i].height as u32 != self.mons[i].mh {
-//                         dirty = true;
-//                         self.mons[i].num = i as i32;
-//                         self.mons[i].mx = unique[i].x_org as i32;
-//                         self.mons[i].wx = unique[i].x_org as i32;
-//                         self.mons[i].my = unique[i].y_org as i32;
-//                         self.mons[i].wy = unique[i].y_org as i32;
-//                         self.mons[i].mw = unique[i].width as u32;
-//                         self.mons[i].ww = unique[i].width as u32;
-//                         self.mons[i].mh = unique[i].height as u32;
-//                         self.mons[i].wh = unique[i].height as u32;
-//                         self.mons[i].updatebarpos(self.bh);
-//                     }
-//             }
-//         } else { // Else, we're going to have to destroy monitors :(
+        for _ in 0..nn {
+            unique.push(xinerama::XineramaScreenInfo { // Dummy value
+                height: 0, width: 0, screen_number: 0, x_org: 0, y_org: 0
+            });
+        }
+        let j = 0;
+        for i in 0..nn {
+            if isuniquegeom(&unique, j, &info[i as usize]) {
+                j+1;
+                unique[j] = info[i as usize].clone();
+            }
+        }
+        // xlib::XFree(info); // TODO
+        nn = unique.len() as i32;
+        if n <= nn as usize { // More physical workspaces than Workspace in the wm : lets create new Workspaces !
+            for _ in 0..(nn-n as i32) {
+                wm.mons.push(workspace::createWorkspace("1"));
+            }
+            for i in n..unique.len().min(wm.mons.len()) { // And lets update their data
+                if unique[i].x_org as i32 != wm.mons[i].x
+                    || unique[i].y_org as i32 != wm.mons[i].y
+                    || unique[i].width as u32 != wm.mons[i].w
+                    || unique[i].height as u32 != wm.mons[i].h {
+                        wm.mons[i].num = i as i32;
+                        //wm.mons[i].mx = unique[i].x_org as i32;
+                        wm.mons[i].x = unique[i].x_org as i32;
+                        //wm.mons[i].my = unique[i].y_org as i32;
+                        wm.mons[i].y = unique[i].y_org as i32;
+                        //wm.mons[i].mw = unique[i].width as u32;
+                        wm.mons[i].w = unique[i].width as u32;
+                        //wm.mons[i].mh = unique[i].height as u32;
+                        wm.mons[i].h = unique[i].height as u32;
+                        //wm.mons[i].updatebarpos(wm.bh);
+                    }
+            }
+        } else { // Else, we're going to have to destroy workspaces :(
 
-//         }
-//     } else {
-//         if self.mons.is_empty() {
-//             self.mons.push(Monitor::new());
-//         }
-//         let m = &mut self.mons[0];
-//         if m.ww != self.sw {
-//             dirty = true;
-//             m.mw = self.sw; m.ww = self.sw;
-//             m.mh = self.sh; m.wh = self.sh;
-//             m.updatebarpos(self.bh);
-//         }
-//     }
-//     if dirty {
-//         // TODO
-//         self.selmonindex = 0;
-//     }
-//     dirty
-// }
+        }
+    } else {
+        if wm.mons.is_empty() {
+            let ws = workspace::createWorkspace("1");
+            let ws = workspace::Workspace {
+                w: wm.sw, h: wm.sh,
+                ..ws
+            };
+            wm.mons.push(workspace::updateBarPos(ws, wm.bh));
+            return WM { selmonindex: 0, ..wm }
+        }
+        // let m = &mut wm.mons[0];
+        // if m.ww != wm.sw {
+        //     dirty = true;
+        //     m.mw = wm.sw; m.ww = wm.sw;
+        //     m.mh = wm.sh; m.wh = wm.sh;
+        //     m.updatebarpos(wm.bh);
+        // }
+    }
+    wm
+}
 
-// /**
-//  * Updates the status bars
-//  */
-// pub fn updatebars(&mut self) {
-//     let mut wa = xlib::XSetWindowAttributes {
-//         background_pixmap: xlib::ParentRelative as u64,
-//         background_pixel: 0,
-//         border_pixmap: xlib::CopyFromParent as u64,
-//         border_pixel: 0,
-//         bit_gravity: xlib::ForgetGravity,
-//         win_gravity: xlib::NorthWestGravity,
-//         backing_store: xlib::NotUseful,
-//         backing_planes: u64::max_value(),
-//         backing_pixel: 0,
-//         save_under: 0,
-//         event_mask: xlib::ButtonPressMask|xlib::ExposureMask,
-//         do_not_propagate_mask: 0,
-//         override_redirect: 1,
-//         colormap: xlib::CopyFromParent as u64,
-//         cursor: self.cursor[CURNORMAL].cursor
-//     };
-//     for mut m in self.mons.iter_mut() {
-//         if m.barwin == 0 {
-//             m.barwin = unsafe {
-//                 xlib::XCreateWindow(self.drw.dpy,
-//                                     self.root,
-//                                     m.wx, m.by, m.ww as u32,
-//                                     self.bh,
-//                                     0,
-//                                     xlib::XDefaultDepth(self.drw.dpy, self.screen),
-//                                     xlib::CopyFromParent as u32,
-//                                     xlib::XDefaultVisual(self.drw.dpy, self.screen),
-//                                     xlib::CWOverrideRedirect|xlib::CWBackPixmap|xlib::CWEventMask, &mut wa) };
-//             unsafe { xlib::XDefineCursor(self.drw.dpy, m.barwin, self.cursor[CURNORMAL].cursor) };
-//             unsafe { xlib::XMapRaised(self.drw.dpy, m.barwin) };
-//         }
-//     }
-// }
+/**
+ * Updates the status bars
+ */
+pub fn updateBars(wm: WM) -> WM {
+    let mut wm = wm;
+    let mut wa = xlib::XSetWindowAttributes {
+        background_pixmap: xlib::ParentRelative as u64,
+        background_pixel: 0,
+        border_pixmap: xlib::CopyFromParent as u64,
+        border_pixel: 0,
+        bit_gravity: xlib::ForgetGravity,
+        win_gravity: xlib::NorthWestGravity,
+        backing_store: xlib::NotUseful,
+        backing_planes: u64::max_value(),
+        backing_pixel: 0,
+        save_under: 0,
+        event_mask: xlib::ButtonPressMask|xlib::ExposureMask,
+        do_not_propagate_mask: 0,
+        override_redirect: 1,
+        colormap: xlib::CopyFromParent as u64,
+        cursor: 0
+    };
+    for mut m in wm.mons.iter_mut() {
+        if m.barwin == 0 {
+            m.barwin = unsafe {
+                xlib::XCreateWindow(wm.drw.dpy,
+                                    wm.root,
+                                    m.x, m.by, m.w as u32,
+                                    wm.bh,
+                                    0,
+                                    xlib::XDefaultDepth(wm.drw.dpy, wm.screen),
+                                    xlib::CopyFromParent as u32,
+                                    xlib::XDefaultVisual(wm.drw.dpy, wm.screen),
+                                    xlib::CWOverrideRedirect|xlib::CWBackPixmap|xlib::CWEventMask,
+                                    &mut wa) };
+            unsafe { xlib::XDefineCursor(wm.drw.dpy, m.barwin, wm.cursor[CURNORMAL].cursor) };
+            unsafe { xlib::XMapRaised(wm.drw.dpy, m.barwin) };
+        }
+    }
+    wm
+}
 
-// /**
-//  * Updates the status bar text
-//  */
-// pub fn updatestatus(&mut self) {
-//     // if(...) TODO
-//     let selmon = &mut self.mons[self.selmonindex];
-//     selmon.drawbar(&mut (self.drw), self.bh, &mut self.scheme, selmon, &self.stext[..]);
-// }
+/**
+ * Updates the status bar text
+ */
+pub fn updateStatus(wm: WM) -> WM{
+    // if(...) TODO
+    WM {drw: workspace::drawBar(wm.drw, wm.bh, &wm.scheme, &wm.mons, wm.selmonindex, &wm.stext[..]), ..wm}
+}
 
-// /**
-//  * Loads and grabs the keys defined in config::keys
-//  */
-// pub fn grabkeys(&mut self) {
-//     self.updatenumlockmask();
-//     let modifiers = vec![0, xlib::LockMask, self.numlockmask, self.numlockmask|xlib::LockMask];
+/**
+ * Loads and grabs the keys defined in config::keys
+ */
+pub fn grabkeys(wm: WM) {
+    let wm = updatenumlockmask(wm);
+    let modifiers = vec![0, xlib::LockMask, wm.numlockmask, wm.numlockmask|xlib::LockMask];
 
-//     unsafe { xlib::XUngrabKey(self.drw.dpy, xlib::AnyKey, xlib::AnyModifier, self.root) };
-//     for i in 0..config::keys.len() {
-//         let code = unsafe { xlib::XKeysymToKeycode(self.drw.dpy, config::keys[i].keysym) };
-//         if code != 0 {
-//             for j in 0..modifiers.len() {
-//                 unsafe { xlib::XGrabKey(self.drw.dpy, code as i32, config::keys[i].modif | modifiers[j], self.root, 1, xlib::GrabModeAsync, xlib::GrabModeAsync) };
-//             }
-//         }
-//     }
-// }
+    unsafe { xlib::XUngrabKey(wm.drw.dpy, xlib::AnyKey, xlib::AnyModifier, wm.root) };
+    for i in 0..config::keys.len() {
+        let code = unsafe { xlib::XKeysymToKeycode(wm.drw.dpy, config::keys[i].keysym) };
+        if code != 0 {
+            for j in 0..modifiers.len() {
+                unsafe { xlib::XGrabKey(wm.drw.dpy, code as i32, config::keys[i].modif | modifiers[j], wm.root, 1, xlib::GrabModeAsync, xlib::GrabModeAsync) };
+            }
+        }
+    }
+}
 
 // /**
 //  * Grabs buttons
 //  */
-// pub fn grabbuttons(&mut self, c: &Client, focused: bool) {
-//     self.updatenumlockmask();
-//     let modifiers = vec![0, xlib::LockMask, self.numlockmask, xlib::LockMask|self.numlockmask];
-//     unsafe { xlib::XUngrabButton(self.drw.dpy, xlib::AnyButton as u32, xlib::AnyModifier, c.win) };
+// pub fn grabbuttons(&mut wm, c: &Client, focused: bool) {
+//     wm.updatenumlockmask();
+//     let modifiers = vec![0, xlib::LockMask, wm.numlockmask, xlib::LockMask|wm.numlockmask];
+//     unsafe { xlib::XUngrabButton(wm.drw.dpy, xlib::AnyButton as u32, xlib::AnyModifier, c.win) };
 //     if focused {
 //         for b in config::buttons.iter() {
 //             /*if b.click == ClkClientWin {
@@ -242,71 +245,75 @@ pub fn initWm(drw: Drw, screen: i32, root: u64, sw: u32, sh: u32) -> WM {
 //         }*/
 //         }
 //     } else {
-//         unsafe { xlib::XGrabButton(self.drw.dpy, xlib::AnyButton as u32, xlib::AnyModifier, c.win, 0, (xlib::ButtonPressMask|xlib::ButtonReleaseMask) as u32, xlib::GrabModeAsync, xlib::GrabModeSync, 0, 0) };
+//         unsafe { xlib::XGrabButton(wm.drw.dpy, xlib::AnyButton as u32, xlib::AnyModifier, c.win, 0, (xlib::ButtonPressMask|xlib::ButtonReleaseMask) as u32, xlib::GrabModeAsync, xlib::GrabModeSync, 0, 0) };
 //     }
 // }
 
-// fn updatenumlockmask(&mut self) {
-//     let modmap = unsafe { (*xlib::XGetModifierMapping(self.drw.dpy)) };
-//     self.numlockmask = 0;
-//     let modifiermap = unsafe { Vec::from_raw_parts(modmap.modifiermap, 8 * modmap.max_keypermod as usize, 8 * modmap.max_keypermod as usize) };
-//     for i in 0..8 {
-//         for j in 0..modmap.max_keypermod {
-//             if modifiermap[(i * modmap.max_keypermod + j) as usize] == unsafe { xlib::XKeysymToKeycode(self.drw.dpy, keysym::XK_Num_Lock as u64) } {
-//                 self.numlockmask = 1 << i;
-//             }
-//         }
-//     }
-//     // unsafe { xlib::XFreeModifiermap(&mut modmap); } TODO Causes a crash for some reason
-// }
+fn updatenumlockmask(wm: WM) -> WM {
+    let modmap = unsafe { (*xlib::XGetModifierMapping(wm.drw.dpy)) };
+    let modifiermap = unsafe { Vec::from_raw_parts(modmap.modifiermap, 8 * modmap.max_keypermod as usize, 8 * modmap.max_keypermod as usize) };
+    for i in 0..8 {
+        for j in 0..modmap.max_keypermod {
+            if modifiermap[(i * modmap.max_keypermod + j) as usize] == unsafe { xlib::XKeysymToKeycode(wm.drw.dpy, keysym::XK_Num_Lock as u64) } {
+                return WM {
+                    numlockmask: 1 << i,
+                    ..wm
+                }
+            }
+        }
+    }
+    WM { numlockmask:0, ..wm}
+    // unsafe { xlib::XFreeModifiermap(&mut modmap); } TODO Causes a crash for some reason
+}
 
-// /**
-//  * Manage a new Window
-//  */
-// pub fn manage(&mut self, w: xlib::Window, wa: &xlib::XWindowAttributes) {
-//     let mut c = Client::new(w, wa, self.selmonindex);
-//     c.updatetitle();
-//     let mut trans = 0;
-//     if unsafe { xlib::XGetTransientForHint(self.drw.dpy, w, &mut trans) } != 0 {
-//         if let Some(t) = Client::from(trans, &self.mons) {
-//             c.monindex = t.monindex;
-//             c.tags = t.tags;
-//         } else {
-//             c.monindex = self.selmonindex;
-//             c.applyrules();
-//         }
-//     } else {
-//         c.monindex = self.selmonindex;
-//         c.applyrules();
-//     }
-//     let mon = &self.mons[c.monindex];
-//     if c.x + c.width() as i32 > mon.mx + mon.mw as i32 {
-//         c.x = mon.mx + mon.mw as i32 - c.width() as i32;
-//     }
-//     if c.y + c.height() as i32 > mon.my + mon.mw as i32 {
-//         c.y = mon.my + mon.mw as i32 - c.height() as i32;
-//     }
-//     c.x = c.x.max(mon.mx);
-//     c.y = c.y.max(if mon.by == mon.my && c.x + (c.w/2) as i32 >= mon.wx && c.x + ((c.w/2) as i32) < mon.wx + mon.ww as i32 { self.bh as i32 } else { mon.my });
-//     let mut wc = xlib::XWindowChanges {
-//         x: 0, y: 0, width:0, height: 0, border_width: c.bw as i32, sibling: 0, stack_mode: 0
-//     };
-//     unsafe { xlib::XConfigureWindow(self.drw.dpy, w, xlib::CWBorderWidth as u32, &mut wc) };
-//     unsafe { xlib::XSetWindowBorder(self.drw.dpy, w, self.scheme[SCHEMENORM].border.pix) };
-//     c.configure(self.drw.dpy);
-//     c.updatewindowtype(self.drw.dpy, &self.netatom);
-//     c.updatesizehints(self.drw.dpy);
-//     c.updatewmhints(self.drw.dpy, &self.mons[self.selmonindex]);
-//     unsafe { xlib::XSelectInput(self.drw.dpy, w, xlib::EnterWindowMask | xlib::FocusChangeMask | xlib::PropertyChangeMask | xlib::StructureNotifyMask) };
-//     // self.grabbuttons(&c, false); TODO
-//     if !c.isfloating {
-//         c.isfloating = trans != 0 || c.isfixed;
-//         c.oldstate = c.isfloating;
-//     }
-//     if c.isfloating {
-//         unsafe { xlib::XRaiseWindow(self.drw.dpy, c.win) };
-//     }
-//     // TODO
-//     unsafe { xlib::XMapWindow(self.drw.dpy, c.win) };
-//     // focus(None) TODO
-// }
+/**
+ * Manage a new Window
+ */
+pub fn manage<'a>(wm: WM<'a>, w: xlib::Window, wa: &xlib::XWindowAttributes) -> WM<'a> {
+    let c = client::createClient(w, wa, wm.selmonindex);
+    // c.updatetitle();
+    // let mut trans = 0;
+    // if unsafe { xlib::XGetTransientForHint(wm.drw.dpy, w, &mut trans) } != 0 {
+    //     if let Some(t) = Client::from(trans, &wm.mons) {
+    //         c.monindex = t.monindex;
+    //         c.tags = t.tags;
+    //     } else {
+    //         c.monindex = wm.selmonindex;
+    //         c.applyrules();
+    //     }
+    // } else {
+    //     c.monindex = wm.selmonindex;
+    //     c.applyrules();
+    // }
+    // let mon = &wm.mons[c.monindex];
+    // if c.x + c.width() as i32 > mon.mx + mon.mw as i32 {
+    //     c.x = mon.mx + mon.mw as i32 - c.width() as i32;
+    // }
+    // if c.y + c.height() as i32 > mon.my + mon.mw as i32 {
+    //     c.y = mon.my + mon.mw as i32 - c.height() as i32;
+    // }
+    // c.x = c.x.max(mon.mx);
+    // c.y = c.y.max(if mon.by == mon.my && c.x + (c.w/2) as i32 >= mon.wx && c.x + ((c.w/2) as i32) < mon.wx + mon.ww as i32 { wm.bh as i32 } else { mon.my });
+    // let mut wc = xlib::XWindowChanges {
+    //     x: 0, y: 0, width:0, height: 0, border_width: c.bw as i32, sibling: 0, stack_mode: 0
+    // };
+    // unsafe { xlib::XConfigureWindow(wm.drw.dpy, w, xlib::CWBorderWidth as u32, &mut wc) };
+    // unsafe { xlib::XSetWindowBorder(wm.drw.dpy, w, wm.scheme[SCHEMENORM].border.pix) };
+    // c.configure(wm.drw.dpy);
+    // c.updatewindowtype(wm.drw.dpy, &wm.netatom);
+    // c.updatesizehints(wm.drw.dpy);
+    // c.updatewmhints(wm.drw.dpy, &wm.mons[wm.selmonindex]);
+    // unsafe { xlib::XSelectInput(wm.drw.dpy, w, xlib::EnterWindowMask | xlib::FocusChangeMask | xlib::PropertyChangeMask | xlib::StructureNotifyMask) };
+    // // wm.grabbuttons(&c, false); TODO
+    // if !c.isfloating {
+    //     c.isfloating = trans != 0 || c.isfixed;
+    //     c.oldstate = c.isfloating;
+    // }
+    // if c.isfloating {
+    //     unsafe { xlib::XRaiseWindow(wm.drw.dpy, c.win) };
+    // }
+    // TODO
+    client::draw(&c, wm.drw.dpy);
+    wm
+    // focus(None) TODO
+}

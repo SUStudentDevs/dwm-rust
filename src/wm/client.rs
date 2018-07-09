@@ -7,7 +7,7 @@ use x11::xlib;
 
 use { NETWMSTATE, NETWMWINDOWTYPE, NETWMFULLSCREEN, NETWMWINDOWTYPEDIALOG };
 use wm::WM;
-use wm::monitor::Monitor;
+use wm::workspace::Workspace;
 use config;
 
 /**
@@ -17,12 +17,9 @@ pub struct Client<'a> {
     pub name: &'a str,
     pub mina: f32, pub maxa: f32,
     pub x: i32, pub y: i32, pub w: u32, pub h: u32,
-    pub oldx: i32, pub oldy: i32, pub oldw: u32, pub oldh: u32,
-    pub basew: u32, pub baseh: u32, pub incw: i32, pub inch: i32, pub maxw: u32, pub maxh: u32, pub minw: u32, pub minh: u32,
-    pub bw: u32, pub oldbw: u32,
+    pub bw: u32,
     pub tags: u32,
     pub isfixed: bool, pub isfloating: bool, pub isurgent: bool, pub neverfocus: bool, pub oldwm:bool, pub isfullscreen: bool, pub oldstate: bool,
-    pub monindex: usize,
     pub win: xlib::Window
 }
 
@@ -36,25 +33,21 @@ impl<'a> PartialEq for Client<'a> {
  * Create a new client from a window ant it's attributes
  */
 pub fn createClient(win: xlib::Window, wa: &xlib::XWindowAttributes, monindex: usize) -> Client {
-    let c = Client {
+    Client {
         name: "",
         mina: 0.0, maxa: 0.0,
         x: wa.x, y: wa.y, w: wa.width as u32, h: wa.height as u32,
-        oldx: wa.x, oldy: wa.y, oldw: wa.width as u32, oldh: wa.height as u32,
-        basew: 0, baseh: 0, incw: 0, inch: 0, maxw: 0, maxh: 0, minw: 0, minh: 0,
-        bw: config::borderpx, oldbw: wa.border_width as u32,
+        bw: 0,
         tags: 0,
         isfixed: false, isfloating: false, isurgent: false, neverfocus: false, oldwm: false, isfullscreen: false, oldstate: false,
-        monindex,
         win
-    };
-    c
+    }
 }
 
 /*
  * Finds the Client containing a Window
  */
-// pub fn from(window : xlib::Window, mons: &'a Vec<Monitor<'a>>) -> Option<&'a Client<'a>> {
+// pub fn fromWindow(window : xlib::Window, mons: &'a Vec<Workspace<'a>>) -> Option<&'a Client<'a>> {
 //     for m in mons.iter() {
 //         for c in m.clients.iter() {
 //             if c.win == window {
@@ -126,6 +119,10 @@ pub fn configure<'a>(client: &'a Client<'a>, dpy: &mut xlib::Display) {
         override_redirect: 0
     };
     unsafe { xlib::XSendEvent(dpy, client.win, 0, xlib::StructureNotifyMask, &mut xlib::XEvent { configure: ce }) };
+}
+
+pub fn draw(c: &Client, dpy: &mut xlib::Display) {
+    unsafe { xlib::XMapWindow(dpy, c.win) };
 }
 
 /*
@@ -221,7 +218,7 @@ pub fn configure<'a>(client: &'a Client<'a>, dpy: &mut xlib::Display) {
 /*
  * Updates the WM Hints
  */
-// pub fn updatewmhints(&mut self, dpy: &mut xlib::Display, selmon: &Monitor<'a>) {
+// pub fn updatewmhints(&mut self, dpy: &mut xlib::Display, selmon: &Workspace<'a>) {
 //     let wmh = unsafe { xlib::XGetWMHints(dpy, self.win) };
 //     if !(wmh.is_null()) {
 //         if let Some(sel) = selmon.sel {
