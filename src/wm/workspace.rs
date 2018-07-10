@@ -35,7 +35,7 @@ pub struct Workspace<'a> {
     pub tagset: Vec<u32>,
     pub showbar: bool,
     pub topbar: bool,
-    pub clients: LinkedList<Client<'a>>,
+    pub clients: Vec<Client<'a>>,
     pub barwin: xlib::Window,
     pub lt: Vec<&'a Layout<'a>>,
     pub pertag: Pertag<'a>
@@ -64,7 +64,7 @@ pub fn createWorkspace<'a>(tag: &'a str) -> Workspace<'a> {
         tagset: Vec::new(),
         showbar: config::showbar,
         topbar: config::topbar,
-        clients: LinkedList::new(),
+        clients: Vec::new(),
         barwin: 0,
         lt: Vec::new(),
         pertag: Pertag {
@@ -201,4 +201,13 @@ pub fn drawBar<'a>(drw: Drw<'a>, bh: u32, scheme: &Vec<ClrScheme>, wss: &Vec<Wor
 //     }
     let w = drw.w;
     drw::mapWindow(drw, wss[selmonindex].barwin, 0, 0, w, bh) // C'est la que ca crashe : self.ww = 0 ?
+}
+
+/**
+ * Add a Client to this Workspace
+ */
+pub fn addClient<'a>(ws: Workspace<'a>, c: Client<'a>) -> Workspace<'a> {
+    let mut ws = ws;
+    ws.clients.push(c);
+    ws
 }

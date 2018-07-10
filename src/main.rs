@@ -179,10 +179,10 @@ pub fn setup(dpy: &mut xlib::Display) -> WM {
         });
     }
     // focus(None); TODO
-    wm::grabKeys(wm)
+    wm::setRootBackground(wm::grabKeys(wm))
 }
 
-pub fn isuniquegeom(unique: &Vec<xinerama::XineramaScreenInfo>, n: usize, info: &xinerama::XineramaScreenInfo) -> bool {
+pub fn isUniqueGeom(unique: &Vec<xinerama::XineramaScreenInfo>, n: usize, info: &xinerama::XineramaScreenInfo) -> bool {
     for i in n..0 {
         if unique[i].x_org == info.x_org && unique[i].y_org == info.y_org && unique[i].width == info.width && unique[i].height == info.height {
             return false
@@ -214,8 +214,10 @@ pub fn handleEvent<'a>(wm: WM<'a>, ev: &xlib::XEvent) -> WM<'a> {
     unsafe {
         match ev.type_ {
             //xlib::ButtonPress => buttonpress(wm, ev),
-            //xlib::ConfigureRequest => configurerequest(wm, ev),
+            xlib::ConfigureRequest => configureRequest(wm, ev),
+            //xlib::ConfigureNotify => configureNotify(wm, ev),
             //xlib::EnterNotify => enternotify(wm, ev),
+            xlib::DestroyNotify => destroyNotify(wm, ev),
             xlib::KeyPress => keyPress(wm, ev),
             xlib::MapRequest => mapRequest(wm, ev),
             // TODO : les autres handlers
@@ -235,38 +237,26 @@ pub fn handleEvent<'a>(wm: WM<'a>, ev: &xlib::XEvent) -> WM<'a> {
 //     // TODO
 // }
 
-// /**
-//  * Handles a ConfigureRequest event
-//  */
-// pub fn configurerequest(wm: &mut WM, e: &xlib::XEvent) {
-//     let ev = unsafe { e.configure_request };
-//     if Client::from(ev.window, &wm.mons) == None {
-//         let mut wc = xlib::XWindowChanges {
-//             x: ev.x, y: ev.y,
-//             width: ev.width, height: ev.height,
-//             border_width: ev.border_width,
-//             sibling: ev.above,
-//             stack_mode: ev.detail
-//         };
-//         unsafe { xlib::XConfigureWindow(wm.drw.dpy, ev.window, ev.value_mask as u32, &mut wc) };
-//     } else {
-//         for m in wm.mons.iter_mut() {
-//             for c in m.clients.iter_mut() {
-//                 if c.win == ev.window {
-//                     if ev.value_mask & xlib::CWBorderWidth as u64 != 0 {
-//                         c.bw = ev.border_width as u32;
-//                     } else if c.isfloating /*|| !(wm.selmon.lt[wm.selmon.sellt as usize].arrange) TODO*/ {
-//                     // let m = &mut wm.mons[c.monindex];
-//                     // TODO
-//                     } else {
-//                         c.configure(wm.drw.dpy);
-//                     }
-//                 }
-//             }
-//         }
-//     }
-//     unsafe { xlib::XSync(wm.drw.dpy, 0) };
-// }
+/**
+ * Handles a ConfigureRequest event : before changing the configuration of a window
+ */
+pub fn configureRequest<'a>(wm: WM<'a>, e: &xlib::XEvent) -> WM <'a> {
+    let ev = unsafe { e.configure_request };
+    if let Some(c) = client::findFromWindow(ev.window, &wm.wss) {
+        client::configure(c, wm.drw.dpy);
+    } else {
+        let mut wc = xlib::XWindowChanges {
+            x: ev.x, y: ev.y,
+            width: ev.width, height: ev.height,
+            border_width: ev.border_width,
+            sibling: ev.above,
+            stack_mode: ev.detail
+        };
+        unsafe { xlib::XConfigureWindow(wm.drw.dpy, ev.window, ev.value_mask as u32, &mut wc) };
+    }
+    unsafe { xlib::XSync(wm.drw.dpy, 0) };
+    wm
+}
 
 // /**
 //  * Handles an EnterNotify event
@@ -300,6 +290,17 @@ pub fn handleEvent<'a>(wm: WM<'a>, ev: &xlib::XEvent) -> WM<'a> {
 // }
 
 /**
+ * Handles Window destruction
+ */
+pub fn destroyNotify<'a>(wm: WM<'a>, e: &xlib::XEvent) -> WM<'a> {
+    let ev = unsafe { e.destroy_window };
+    if let Some(c) = client::findFromWindow(ev.window, &wm.wss) {
+        // TODO
+    }
+    wm
+}
+
+/**
  * Handles a KeyPress event
  */
 pub fn keyPress<'a>(mut wm: WM<'a>, e: &xlib::XEvent) -> WM<'a> {
@@ -326,7 +327,7 @@ pub fn mapRequest<'a>(wm: WM<'a>, e: &xlib::XEvent) -> WM<'a> {
     if unsafe { xlib::XGetWindowAttributes(wm.drw.dpy, ev.window, &mut wa) } == 0 || wa.override_redirect != 0 {
         wm
     } else if client::findFromWindow(ev.window, &wm.wss) == None {
-        return wm::manage(wm, ev.window, &wa);
+        return wm::manage(wm, ev.window, wa);
     } else {
         wm
     }

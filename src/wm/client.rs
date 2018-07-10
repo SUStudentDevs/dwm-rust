@@ -18,6 +18,7 @@ pub struct Client<'a> {
     pub mina: f32, pub maxa: f32,
     pub x: i32, pub y: i32, pub w: u32, pub h: u32,
     pub bw: u32,
+    pub wsindex: usize,
     pub tags: u32,
     pub isfixed: bool, pub isfloating: bool, pub isurgent: bool, pub neverfocus: bool, pub oldwm:bool, pub isfullscreen: bool, pub oldstate: bool,
     pub win: xlib::Window
@@ -32,12 +33,13 @@ impl<'a> PartialEq for Client<'a> {
 /**
  * Create a new client from a window ant it's attributes
  */
-pub fn createClient(win: xlib::Window, wa: &xlib::XWindowAttributes, monindex: usize) -> Client {
+pub fn createClient<'a>(win: xlib::Window, wa: xlib::XWindowAttributes, wsindex: usize) -> Client<'a> {
     Client {
         name: "",
         mina: 0.0, maxa: 0.0,
         x: wa.x, y: wa.y, w: wa.width as u32, h: wa.height as u32,
         bw: 0,
+        wsindex,
         tags: 0,
         isfixed: false, isfloating: false, isurgent: false, neverfocus: false, oldwm: false, isfullscreen: false, oldstate: false,
         win
@@ -100,27 +102,22 @@ pub fn height(client: &Client) -> u32 {
 }
 
 /**
- * Change configuration of the window
+ * Change configuration of the window : sends a Configure event
  */
-pub fn configure<'a>(client: &'a Client<'a>, dpy: &mut xlib::Display) {
-    let ce = xlib::XConfigureEvent {
-        type_: xlib::ConfigureNotify,
-        serial: 0,
-        send_event: 1,
-        display: dpy,
-        event: client.win,
-        window: client.win,
-        x: client.x,
-        y: client.y,
-        width: client.w as i32,
-        height: client.h as i32,
-        border_width: client.bw as i32,
-        above: 0,
-        override_redirect: 0
+pub fn configure<'a>(c: &'a Client<'a>, dpy: &mut xlib::Display) {
+    let mut wc = xlib::XWindowChanges {
+        x: c.x, y: c.y,
+        width: c.w as i32, height: c.h as i32,
+        border_width: c.bw as i32,
+        sibling: 0,
+        stack_mode: 0
     };
-    unsafe { xlib::XSendEvent(dpy, client.win, 0, xlib::StructureNotifyMask, &mut xlib::XEvent { configure: ce }) };
+    unsafe { xlib::XConfigureWindow(dpy, c.win, 0b11111, &mut wc) };
 }
 
+/**
+ * Draws the Window on the screen
+ */
 pub fn draw(c: &Client, dpy: &mut xlib::Display) {
     unsafe { xlib::XMapWindow(dpy, c.win) };
 }

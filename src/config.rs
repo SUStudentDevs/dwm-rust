@@ -14,6 +14,8 @@ pub const normfgcolor: &str = "#bbbbbb";
 pub const selbordercolor: &str = "#005577";
 pub const selbgcolor: &str = "#005577";
 pub const selfgcolor: &str = "#eeeeee";
+/// Background color
+pub const backgroundColor: u64 = 0x00aa00;
 /// Size (in pixels) of window borders
 pub const borderpx: u32 = 2;
 /// Snap pixel

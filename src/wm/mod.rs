@@ -10,7 +10,7 @@ pub mod workspace;
 /// Client module
 pub mod client;
 
-use { CURNORMAL, SCHEMENORM, isuniquegeom };
+use { CURNORMAL, SCHEMENORM, isUniqueGeom };
 use wm::workspace::Workspace;
 use drw;
 use drw::{ Drw, Cur };
@@ -87,6 +87,15 @@ pub fn initWm(drw: Drw, screen: i32, root: u64, sw: u32, sh: u32) -> WM {
             clrscheme::createClr(wm.drw.dpy, wm.drw.screen, config::selbgcolor),
             clrscheme::createClr(wm.drw.dpy, wm.drw.screen, config::selbordercolor))); // Selected
     }
+    wm
+}
+
+/**
+ * Sets a color for the root Window background
+ */
+pub fn setRootBackground(wm: WM) -> WM {
+    unsafe { xlib::XSetWindowBackground(wm.drw.dpy, wm.root, config::backgroundColor) };
+    unsafe { xlib::XClearWindow(wm.drw.dpy, wm.root) };
     wm
 }
 
@@ -219,8 +228,11 @@ fn updatenumlockmask(wm: WM) -> WM {
 /**
  * Manage a new Window
  */
-pub fn manage<'a>(wm: WM<'a>, w: xlib::Window, wa: &xlib::XWindowAttributes) -> WM<'a> {
+pub fn manage<'a>(wm: WM<'a>, w: xlib::Window, wa: xlib::XWindowAttributes) -> WM<'a> {
     let c = client::updateTitle(client::createClient(w, wa, wm.selwsindex));
+    client::draw(&c, wm.drw.dpy);
+    let mut wm = wm;
+    wm.wss[wm.selwsindex].clients.push(c);
     // let mut trans = 0;
     // if unsafe { xlib::XGetTransientForHint(wm.drw.dpy, w, &mut trans) } != 0 {
     //     if let Some(t) = Client::from(trans, &wm.mons) {
@@ -231,7 +243,6 @@ pub fn manage<'a>(wm: WM<'a>, w: xlib::Window, wa: &xlib::XWindowAttributes) -> 
     //         c.applyrules();
     //     }
     // } else {
-    //     c.monindex = wm.selmonindex;
     //     c.applyrules();
     // }
     // let mon = &wm.mons[c.monindex];
@@ -262,7 +273,6 @@ pub fn manage<'a>(wm: WM<'a>, w: xlib::Window, wa: &xlib::XWindowAttributes) -> 
     //     unsafe { xlib::XRaiseWindow(wm.drw.dpy, c.win) };
     // }
     // TODO
-    client::draw(&c, wm.drw.dpy);
     wm
     // focus(None) TODO
 }
