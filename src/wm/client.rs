@@ -44,19 +44,19 @@ pub fn createClient(win: xlib::Window, wa: &xlib::XWindowAttributes, monindex: u
     }
 }
 
-/*
+/**
  * Finds the Client containing a Window
  */
-// pub fn fromWindow(window : xlib::Window, mons: &'a Vec<Workspace<'a>>) -> Option<&'a Client<'a>> {
-//     for m in mons.iter() {
-//         for c in m.clients.iter() {
-//             if c.win == window {
-//                 return Some(c)
-//             }
-//         }
-//     }
-//     None
-// }
+pub fn findFromWindow<'a>(window : xlib::Window, mons: &'a Vec<Workspace<'a>>) -> Option<&'a Client<'a>> {
+    for m in mons.iter() {
+        for c in m.clients.iter() {
+            if c.win == window {
+                return Some(c)
+            }
+        }
+    }
+    None
+}
 
 /*
  * Set the window to fullscreen (or not)
@@ -141,12 +141,12 @@ pub fn draw(c: &Client, dpy: &mut xlib::Display) {
 //     atom
 // }
 
-/*
+/**
  * Updates the title
  */
-// pub fn updatetitle(&mut self) {
-//     // TODO
-// }
+pub fn updateTitle(c: Client) -> Client {
+    Client { ..c }
+}
 
 /*
  * Updates type of the window

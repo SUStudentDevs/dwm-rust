@@ -19,6 +19,7 @@ pub mod config;
 
 use wm::WM;
 use wm::workspace::{ Layout, Workspace };
+use wm::client;
 use wm::client::Client;
 
 const VERSION: &str = "0.0.1";
@@ -200,7 +201,7 @@ pub fn run(wm: WM) -> WM {
         xlib::XSync(wm.drw.dpy, 0);
         println!("Salut les amis");
         while wm.running && xlib::XNextEvent(wm.drw.dpy, ev) == 0 {
-            wm = handleevent(wm, ev);
+            wm = handleEvent(wm, ev);
         }
     }
     wm
@@ -209,14 +210,14 @@ pub fn run(wm: WM) -> WM {
 /**
  * Handles an event
  */
-pub fn handleevent<'a>(wm: WM<'a>, ev: &xlib::XEvent) -> WM<'a> {
+pub fn handleEvent<'a>(wm: WM<'a>, ev: &xlib::XEvent) -> WM<'a> {
     unsafe {
         match ev.type_ {
             //xlib::ButtonPress => buttonpress(wm, ev),
             //xlib::ConfigureRequest => configurerequest(wm, ev),
             //xlib::EnterNotify => enternotify(wm, ev),
-            xlib::KeyPress => keypress(wm, ev),
-            //xlib::MapRequest => maprequest(wm, ev),
+            xlib::KeyPress => keyPress(wm, ev),
+            xlib::MapRequest => mapRequest(wm, ev),
             // TODO : les autres handlers
             _ => wm
         }
@@ -301,7 +302,7 @@ pub fn handleevent<'a>(wm: WM<'a>, ev: &xlib::XEvent) -> WM<'a> {
 /**
  * Handles a KeyPress event
  */
-pub fn keypress<'a>(mut wm: WM<'a>, e: &xlib::XEvent) -> WM<'a> {
+pub fn keyPress<'a>(mut wm: WM<'a>, e: &xlib::XEvent) -> WM<'a> {
     let ev = unsafe { e.key };
     let keysym = unsafe { xlib::XKeycodeToKeysym(wm.drw.dpy, ev.keycode as u8, 0) };
     for i in 0..config::keys.len() {
@@ -314,24 +315,22 @@ pub fn keypress<'a>(mut wm: WM<'a>, e: &xlib::XEvent) -> WM<'a> {
     wm
 }
 
-// /**
-//  * Handles a MapRequest event
-//  */
-// pub fn maprequest(wm: &mut WM, e: &xlib::XEvent) {
-//     let ev = unsafe { e.map_request };
-//     let mut wa = xlib::XWindowAttributes { // Dummy value
-//         x: 0, y: 0, width: 0, height: 0, border_width: 0, depth: 0, visual: ptr::null_mut(), root: wm.root, class: 0, bit_gravity: 0, win_gravity: 0, backing_store: 0, backing_planes: 0, backing_pixel: 0, save_under: 0, colormap: 0, map_installed: 0, map_state: 0, all_event_masks: 0, your_event_mask: 0, do_not_propagate_mask: 0, override_redirect: 0, screen: ptr::null_mut()
-//     };
-//     if unsafe { xlib::XGetWindowAttributes(wm.drw.dpy, ev.window, &mut wa) == 0 } {
-//         return;
-//     }
-//     if wa.override_redirect != 0 {
-//         return;
-//     }
-//     if Client::from(ev.window, &mut wm.mons) == None {
-//         wm.manage(ev.window, &wa);
-//     }
-// }
+/**
+ * Handles a MapRequest event
+ */
+pub fn mapRequest<'a>(wm: WM<'a>, e: &xlib::XEvent) -> WM<'a> {
+    let ev = unsafe { e.map_request };
+    let mut wa = xlib::XWindowAttributes { // Dummy value
+        x: 0, y: 0, width: 0, height: 0, border_width: 0, depth: 0, visual: ptr::null_mut(), root: wm.root, class: 0, bit_gravity: 0, win_gravity: 0, backing_store: 0, backing_planes: 0, backing_pixel: 0, save_under: 0, colormap: 0, map_installed: 0, map_state: 0, all_event_masks: 0, your_event_mask: 0, do_not_propagate_mask: 0, override_redirect: 0, screen: ptr::null_mut()
+    };
+    if unsafe { xlib::XGetWindowAttributes(wm.drw.dpy, ev.window, &mut wa) } == 0 || wa.override_redirect != 0 {
+        wm
+    } else if client::findFromWindow(ev.window, &wm.wss) == None {
+        return wm::manage(wm, ev.window, &wa);
+    } else {
+        wm
+    }
+}
 
 /**
  * Execute a shell command

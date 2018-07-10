@@ -104,7 +104,7 @@ pub fn createWorkspaces(wm: WM) -> WM {
                     ..ws
                 }, wm.bh)
             }).collect(),
-            selwsindex: 4,
+            selwsindex: 0,
             ..wm
         }
     }
@@ -220,8 +220,7 @@ fn updatenumlockmask(wm: WM) -> WM {
  * Manage a new Window
  */
 pub fn manage<'a>(wm: WM<'a>, w: xlib::Window, wa: &xlib::XWindowAttributes) -> WM<'a> {
-    let c = client::createClient(w, wa, wm.selwsindex);
-    // c.updatetitle();
+    let c = client::updateTitle(client::createClient(w, wa, wm.selwsindex));
     // let mut trans = 0;
     // if unsafe { xlib::XGetTransientForHint(wm.drw.dpy, w, &mut trans) } != 0 {
     //     if let Some(t) = Client::from(trans, &wm.mons) {
