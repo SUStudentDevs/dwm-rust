@@ -28,7 +28,7 @@ pub struct Workspace<'a> {
     pub nmaster: u32,
     pub num: i32,
     pub tag: &'a str,
-    pub by: i32,    // Y position of Bar
+    pub by: i32, pub bh: u32,  // Y position and height of bar
     pub x: i32, pub y: i32, pub w: u32, pub h: u32, // Workspace
     pub seltags: u32,
     pub sellt: u32,
@@ -57,7 +57,7 @@ pub fn createWorkspace<'a>(tag: &'a str) -> Workspace<'a> {
         nmaster: config::nmaster,
         num: 0,
         tag,
-        by: 0,
+        by: 0, bh: 0,
         x: 0, y: 0, w: 0, h: 0,
         seltags: 0,
         sellt: 0,
@@ -99,19 +99,32 @@ pub fn createWorkspace<'a>(tag: &'a str) -> Workspace<'a> {
 //     selmon
 // }
 
+pub fn minX(ws: &Workspace) -> i32 { ws.x }
+
+pub fn maxW(ws: &Workspace) -> u32 { ws.w }
+
+pub fn minY(ws : &Workspace) -> i32 {
+    if ws.by == ws.y { ws.bh as i32} else { ws.y }
+}
+
+pub fn maxH(ws: &Workspace) -> u32 {
+    if ws.by == (ws.h as i32) - (ws.bh as i32) { ws.by as u32 } else { ws.h }
+}
 
 /**
  * Updates the position of the statusbar for this Workspace
  */
-pub fn updateBarPos(ws : Workspace, bh: u32) -> Workspace {
+pub fn updateBarPos(ws: Workspace, bh: u32) -> Workspace {
     if ws.showbar {
         return Workspace {
             by: if ws.topbar { ws.y } else { (ws.h as i32) - (bh as i32)},
+            bh,
             ..ws
         };
     }
     Workspace {
         by: -(bh as i32),
+        bh,
         ..ws
     }
 }

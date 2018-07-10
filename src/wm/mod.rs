@@ -32,7 +32,7 @@ pub struct WM<'a> {
     pub scheme: Vec<ClrScheme>,
     pub wss: Vec<Workspace<'a>>,
     pub selwsindex: usize,
-    pub sw: u32, sh: u32,
+    pub sw: u32, pub sh: u32,
     pub bh: u32,
     pub stext: String,
     pub numlockmask: u32,
@@ -165,7 +165,7 @@ pub fn updateStatus(wm: WM) -> WM{
 /**
  * Loads and grabs the keys defined in config::keys
  */
-pub fn grabkeys(wm: WM) {
+pub fn grabKeys(wm: WM) -> WM {
     let wm = updatenumlockmask(wm);
     let modifiers = vec![0, xlib::LockMask, wm.numlockmask, wm.numlockmask|xlib::LockMask];
 
@@ -178,6 +178,7 @@ pub fn grabkeys(wm: WM) {
             }
         }
     }
+    wm
 }
 
 // /**

@@ -88,14 +88,14 @@ pub fn freeFnt(fnt: Fnt, dpy: &mut xlib::Display) {
     unsafe { xft::XftFontClose(dpy, fnt.xfont) };
 }
 
-// pub fn getexts(&mut self, dpy: &mut xlib::Display, text: Vec<u8>, tex: &mut Extnts) {
-//     let mut ext = xrender::XGlyphInfo { // Dummy value
-//         height: 0, width: 0, x: 0, y: 0, xOff: 0, yOff: 0
-//     };
-//     unsafe { xft::XftTextExtentsUtf8(dpy, self.xfont, text.as_ptr(), text.len() as i32, &mut ext) }
-//     tex.h = self.h;
-//     tex.w = ext.xOff as u32;
-// }
+pub fn getexts(fnt: &Fnt, dpy: &mut xlib::Display, text: Vec<u8>, tex: &mut Extnts) {
+    let mut ext = xrender::XGlyphInfo { // Dummy value
+        height: 0, width: 0, x: 0, y: 0, xOff: 0, yOff: 0
+    };
+    unsafe { xft::XftTextExtentsUtf8(dpy, fnt.xfont, text.as_ptr(), text.len() as i32, &mut ext) }
+    tex.h = fnt.h;
+    tex.w = ext.xOff as u32;
+}
 
 // pub fn getexts_width(&mut self, dpy: &mut xlib::Display, text: Vec<u8>) -> u32 {
 //     let mut tex = Extnts { // Dummy value

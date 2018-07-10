@@ -82,7 +82,7 @@ pub struct Pertag<'a> {
     nmasters: Vec<i32>, // number windows in master area
     mfacts: Vec<f32>,   // mfacts per tag
     selltds: Vec<u32>,  // Selected layouts
-    ltidxs: Vec<Vec<&'a Layout<'a>>>, // Matrix of tags and yaouts
+    ltidxs: Vec<Vec<&'a Layout<'a>>>, // Matrix of tags and layouts
     showbars: Vec<bool>,    // Display bar for each tag
     prefzooms: Vec<&'a Client<'a>> // Zoom information
 }
@@ -178,8 +178,7 @@ pub fn setup(dpy: &mut xlib::Display) -> WM {
         });
     }
     // focus(None); TODO
-    wm
-    //wm::grabkeys(wm);
+    wm::grabKeys(wm)
 }
 
 pub fn isuniquegeom(unique: &Vec<xinerama::XineramaScreenInfo>, n: usize, info: &xinerama::XineramaScreenInfo) -> bool {
@@ -201,28 +200,28 @@ pub fn run(wm: WM) -> WM {
         xlib::XSync(wm.drw.dpy, 0);
         println!("Salut les amis");
         while wm.running && xlib::XNextEvent(wm.drw.dpy, ev) == 0 {
-            wm = wm //handleevent(wm, ev);
+            wm = handleevent(wm, ev);
         }
     }
     wm
 }
 
-// /**
-//  * Handles an event
-//  */
-// pub fn handleevent(wm: &mut WM, ev: &xlib::XEvent) {
-//     unsafe {
-//         match ev.type_ {
-//             xlib::ButtonPress => buttonpress(wm, ev),
-//             xlib::ConfigureRequest => configurerequest(wm, ev),
-//             xlib::EnterNotify => enternotify(wm, ev),
-//             xlib::KeyPress => keypress(wm, ev),
-//             xlib::MapRequest => maprequest(wm, ev),
-//             // TODO : les autres handlers
-//             _ => ()
-//         }
-//     }
-// }
+/**
+ * Handles an event
+ */
+pub fn handleevent<'a>(wm: WM<'a>, ev: &xlib::XEvent) -> WM<'a> {
+    unsafe {
+        match ev.type_ {
+            //xlib::ButtonPress => buttonpress(wm, ev),
+            //xlib::ConfigureRequest => configurerequest(wm, ev),
+            //xlib::EnterNotify => enternotify(wm, ev),
+            xlib::KeyPress => keypress(wm, ev),
+            //xlib::MapRequest => maprequest(wm, ev),
+            // TODO : les autres handlers
+            _ => wm
+        }
+    }
+}
 
 // /**
 //  * Handles a ButtonPress event
@@ -299,20 +298,21 @@ pub fn run(wm: WM) -> WM {
 //     }
 // }
 
-// /**
-//  * Handles a KeyPress event
-//  */
-// pub fn keypress(wm: &mut WM, e: &xlib::XEvent) {
-//     let ev = unsafe { e.key };
-//     let keysym = unsafe { xlib::XKeycodeToKeysym(wm.drw.dpy, ev.keycode as u8, 0) };
-//     for i in 0..config::keys.len() {
-//         if keysym == config::keys[i].keysym
-//         && cleanmask(ev.state) == cleanmask(config::keys[i].modif) {
-//             let func = config::keys[i].func;
-//             func(&config::keys[i].arg, wm);
-//         }
-//     }
-// }
+/**
+ * Handles a KeyPress event
+ */
+pub fn keypress<'a>(mut wm: WM<'a>, e: &xlib::XEvent) -> WM<'a> {
+    let ev = unsafe { e.key };
+    let keysym = unsafe { xlib::XKeycodeToKeysym(wm.drw.dpy, ev.keycode as u8, 0) };
+    for i in 0..config::keys.len() {
+        if keysym == config::keys[i].keysym
+        && cleanmask(ev.state) == cleanmask(config::keys[i].modif) {
+            let func = config::keys[i].func;
+            func(&config::keys[i].arg, &mut wm);
+        }
+    }
+    wm
+}
 
 // /**
 //  * Handles a MapRequest event
