@@ -4,6 +4,7 @@ use std::collections::LinkedList;
 
 use x11::xlib;
 
+use client;
 use { Client, Pertag };
 use { SCHEMENORM, SCHEMESEL };
 use drw;
@@ -16,7 +17,7 @@ use config;
  */
 pub struct Layout<'a> {
     pub symbol: &'a str,
-    pub arrange: fn(&Workspace)
+    pub arrange: fn(Workspace) -> Workspace
 }
 
 /**
@@ -211,3 +212,14 @@ pub fn addClient<'a>(ws: Workspace<'a>, c: Client<'a>) -> Workspace<'a> {
     ws.clients.push(c);
     ws
 }
+
+/**
+ * Updates geometry of the Workspace
+ */
+pub fn updateGeom<'a>(ws: Workspace<'a>, dpy: &mut xlib::Display) -> Workspace<'a> {
+    for c in ws.clients.iter() {
+        client::configure(c, dpy);
+    }
+    ws
+}
+

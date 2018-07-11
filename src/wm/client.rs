@@ -38,7 +38,7 @@ pub fn createClient<'a>(win: xlib::Window, wa: xlib::XWindowAttributes, wsindex:
         name: "",
         mina: 0.0, maxa: 0.0,
         x: wa.x, y: wa.y, w: wa.width as u32, h: wa.height as u32,
-        bw: 0,
+        bw: config::borderpx,
         wsindex,
         tags: 0,
         isfixed: false, isfloating: false, isurgent: false, neverfocus: false, oldwm: false, isfullscreen: false, oldstate: false,
@@ -120,6 +120,20 @@ pub fn configure<'a>(c: &'a Client<'a>, dpy: &mut xlib::Display) {
  */
 pub fn draw(c: &Client, dpy: &mut xlib::Display) {
     unsafe { xlib::XMapWindow(dpy, c.win) };
+}
+
+/**
+ * Hides the Window from the screen
+ */
+pub fn hide(c: &Client, dpy: &mut xlib::Display) {
+    unsafe { xlib::XUnmapWindow(dpy, c.win) };
+}
+
+/**
+ * Destroys the Window and frees the client
+ */
+pub fn freeClient(c: Client, dpy: &mut xlib::Display) {
+    unsafe { xlib::XDestroyWindow(dpy, c.win) };
 }
 
 /*

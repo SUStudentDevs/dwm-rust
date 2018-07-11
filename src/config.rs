@@ -2,7 +2,7 @@ use x11::xlib;
 use x11::keysym::*;
 
 use { Layout, Key, Button, Arg };
-use { tilearrange, monoclearrange, noarrange, gridarrange };
+use { tileArrange, monocleArrange, noArrange, gridArrange };
 use { spawn, quit };
 
 /// Fonts (the first one available is used)
@@ -17,7 +17,7 @@ pub const selfgcolor: &str = "#eeeeee";
 /// Background color
 pub const backgroundColor: u64 = 0x00aa00;
 /// Size (in pixels) of window borders
-pub const borderpx: u32 = 2;
+pub const borderpx: u32 = 1;
 /// Snap pixel
 pub const snap: u32 = 32;
 /// Show the status bar (false means no bar)
@@ -28,14 +28,14 @@ pub const topbar: bool = false;
 /// Ratio of master area to stack area width
 pub const mfact: f32 = 0.5;
 /// Maximum number of clients in the master area
-pub const nmaster: u32 = 2;
+pub const nmaster: u32 = 1;
 
 /// Layouts
 pub const layouts: [Layout; 4] = [
-    Layout { symbol: "[]=", arrange: tilearrange },
-    Layout { symbol: "[M]", arrange: monoclearrange },
-    Layout { symbol: "><>", arrange: noarrange },
-    Layout { symbol: "HHH", arrange: gridarrange }
+    Layout { symbol: "[]=", arrange: tileArrange },
+    Layout { symbol: "[M]", arrange: monocleArrange },
+    Layout { symbol: "><>", arrange: noArrange },
+    Layout { symbol: "HHH", arrange: gridArrange }
 ];
 
 /// Tags
@@ -48,7 +48,7 @@ pub const MODKEY: u32 = xlib::Mod4Mask;
 pub const keys: [Key; 6] = [
     //    modifier              key                 function                argument
     Key { modif:MODKEY,                 keysym:XK_Return as u64, func:spawn, arg:Arg {s: "gnome-terminal -e tmux"}},
-    Key { modif:MODKEY,                 keysym:XK_space as u64, func:spawn, arg:Arg {s: "rofi -show run"}},
+    Key { modif:MODKEY,                 keysym:XK_d as u64, func:spawn, arg:Arg {s: "rofi -show run"}},
     Key { modif:MODKEY|xlib::ShiftMask, keysym:XK_e as u64, func:quit, arg:Arg {i: 0}},
     Key { modif:MODKEY|xlib::ShiftMask, keysym:XF86XK_AudioLowerVolume as u64, func:spawn, arg:Arg {s: "amixer -q sset 'Master' 5%-"}},
     Key { modif:MODKEY|xlib::ShiftMask, keysym:XF86XK_AudioRaiseVolume as u64, func:spawn, arg:Arg {s: "amixer -q sset 'Master' 5%+"}},

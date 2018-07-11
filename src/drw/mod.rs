@@ -10,7 +10,6 @@ pub mod fnt;
 
 use self::clrscheme::ClrScheme;
 use self::fnt::Fnt;
-use config;
 
 use SCHEMENORM;
 use SCHEMESEL;

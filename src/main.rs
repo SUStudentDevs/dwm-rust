@@ -156,7 +156,7 @@ pub fn setup(dpy: &mut xlib::Display) -> WM {
         process::exit(1);
     }
 
-    let mut wm = wm::updateStatus(wm::updateBars(wm::createWorkspaces(wm::initWm(drw, screen, root, sw, sh))));
+    let wm = wm::updateStatus(wm::updateBars(wm::createWorkspaces(wm::initWm(drw, screen, root, sw, sh))));
     unsafe {
         xlib::XChangeProperty(wm.drw.dpy, wm.root, wm.netatom[NETSUPPORTED], xlib::XA_ATOM, 32, xlib::PropModeReplace, &(wm.netatom[0] as u8), NETLAST as i32);
         xlib::XDeleteProperty(wm.drw.dpy, wm.root, wm.netatom[NETCLIENTLIST]);
@@ -199,7 +199,6 @@ pub fn run(wm: WM) -> WM {
     let mut wm = wm;
     unsafe {
         xlib::XSync(wm.drw.dpy, 0);
-        println!("Salut les amis");
         while wm.running && xlib::XNextEvent(wm.drw.dpy, ev) == 0 {
             wm = handleEvent(wm, ev);
         }
@@ -243,6 +242,7 @@ pub fn handleEvent<'a>(wm: WM<'a>, ev: &xlib::XEvent) -> WM<'a> {
 pub fn configureRequest<'a>(wm: WM<'a>, e: &xlib::XEvent) -> WM <'a> {
     let ev = unsafe { e.configure_request };
     if let Some(c) = client::findFromWindow(ev.window, &wm.wss) {
+        println!("Heu ?");
         client::configure(c, wm.drw.dpy);
     } else {
         let mut wc = xlib::XWindowChanges {
@@ -352,21 +352,25 @@ pub fn quit(_: &Arg, wm: &mut WM) {
     wm.running = false;
 }
 
-// Arrange functions
-fn tilearrange(workspace: &Workspace) {
+/// Arrange functions
+fn tileArrange(ws: Workspace) -> Workspace {
     // TODO
+    ws
 }
 
-fn monoclearrange(workspace: &Workspace) {
+fn monocleArrange(ws: Workspace) -> Workspace {
     // TODO
+    ws
 }
 
-fn noarrange(workspace: &Workspace) {
+fn noArrange(ws: Workspace) -> Workspace {
     // Nothing
+    ws
 }
 
-fn gridarrange(workspace: &Workspace) {
+fn gridArrange(ws: Workspace) -> Workspace {
     // TODO
+    ws
 }
 
 /**

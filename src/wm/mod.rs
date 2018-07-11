@@ -103,18 +103,67 @@ pub fn setRootBackground(wm: WM) -> WM {
  * Create all the workspaces and set their data
  */
 pub fn createWorkspaces(wm: WM) -> WM {
-    let mut wm = wm;
-    if wm.wss.is_empty() {
-        return WM {
-            wss:config::tags.iter().map(|t| {
-                let ws = workspace::createWorkspace(t);
-                workspace::updateBarPos(workspace::Workspace {
-                    w: wm.sw, h: wm.sh,
-                    ..ws
-                }, wm.bh)
-            }).collect(),
-            selwsindex: 0,
-            ..wm
+    WM {
+        wss:config::tags.iter().map(|t| {
+            let ws = workspace::createWorkspace(t);
+            workspace::updateBarPos(workspace::Workspace {
+                w: wm.sw, h: wm.sh,
+                ..ws
+            }, wm.bh)
+        }).collect(),
+        selwsindex: 0,
+        ..wm
+    }
+}
+// /**
+//  * Grabs buttons
+//  */
+// pub fn grabbuttons(&mut wm, c: &Client, focused: bool) {
+//     wm.updatenumlockmask();
+//     let modifiers = vec![0, xlib::LockMask, wm.numlockmask, xlib::LockMask|wm.numlockmask];
+//     unsafe { xlib::XUngrabButton(wm.drw.dpy, xlib::AnyButton as u32, xlib::AnyModifier, c.win) };
+//     if focused {
+//         for b in config::buttons.iter() {
+//             /*if b.click == ClkClientWin {
+//             TODO
+//         }*/
+//         }
+//     } else {
+//         unsafe { xlib::XGrabButton(wm.drw.dpy, xlib::AnyButton as u32, xlib::AnyModifier, c.win, 0, (xlib::ButtonPressMask|xlib::ButtonReleaseMask) as u32, xlib::GrabModeAsync, xlib::GrabModeSync, 0, 0) };
+//     }
+// }
+
+fn updatenumlockmask(wm: WM) -> WM {
+    let modmap = unsafe { (*xlib::XGetModifierMapping(wm.drw.dpy)) };
+    let modifiermap = unsafe { Vec::from_raw_parts(modmap.modifiermap, 8 * modmap.max_keypermod as usize, 8 * modmap.max_keypermod as usize) };
+    for i in 0..8 {
+        for j in 0..modmap.max_keypermod {
+            if modifiermap[(i * modmap.max_keypermod + j) as usize] == unsafe { xlib::XKeysymToKeycode(wm.drw.dpy, keysym::XK_Num_Lock as u64) } {
+                return WM {
+                    numlockmask: 1 << i,
+                    ..wm
+                }
+            }
+        }
+    }
+    WM { numlockmask:0, ..wm}
+    // unsafe { xlib::XFreeModifiermap(&mut modmap); } TODO Causes a crash for some reason
+}
+
+/**
+ * Loads and grabs the keys defined in config::keys
+ */
+pub fn grabKeys(wm: WM) -> WM {
+    let wm = updatenumlockmask(wm);
+    let modifiers = vec![0, xlib::LockMask, wm.numlockmask, wm.numlockmask|xlib::LockMask];
+
+    unsafe { xlib::XUngrabKey(wm.drw.dpy, xlib::AnyKey, xlib::AnyModifier, wm.root) };
+    for i in 0..config::keys.len() {
+        let code = unsafe { xlib::XKeysymToKeycode(wm.drw.dpy, config::keys[i].keysym) };
+        if code != 0 {
+            for j in 0..modifiers.len() {
+                unsafe { xlib::XGrabKey(wm.drw.dpy, code as i32, config::keys[i].modif | modifiers[j], wm.root, 1, xlib::GrabModeAsync, xlib::GrabModeAsync) };
+            }
         }
     }
     wm
@@ -166,73 +215,17 @@ pub fn updateBars(wm: WM) -> WM {
 /**
  * Updates the status bar text
  */
-pub fn updateStatus(wm: WM) -> WM{
+pub fn updateStatus(wm: WM) -> WM {
     // if(...) TODO
     WM {drw: workspace::drawBar(wm.drw, wm.bh, &wm.scheme, &wm.wss, wm.selwsindex, &wm.stext[..]), ..wm}
-}
-
-/**
- * Loads and grabs the keys defined in config::keys
- */
-pub fn grabKeys(wm: WM) -> WM {
-    let wm = updatenumlockmask(wm);
-    let modifiers = vec![0, xlib::LockMask, wm.numlockmask, wm.numlockmask|xlib::LockMask];
-
-    unsafe { xlib::XUngrabKey(wm.drw.dpy, xlib::AnyKey, xlib::AnyModifier, wm.root) };
-    for i in 0..config::keys.len() {
-        let code = unsafe { xlib::XKeysymToKeycode(wm.drw.dpy, config::keys[i].keysym) };
-        if code != 0 {
-            for j in 0..modifiers.len() {
-                unsafe { xlib::XGrabKey(wm.drw.dpy, code as i32, config::keys[i].modif | modifiers[j], wm.root, 1, xlib::GrabModeAsync, xlib::GrabModeAsync) };
-            }
-        }
-    }
-    wm
-}
-
-// /**
-//  * Grabs buttons
-//  */
-// pub fn grabbuttons(&mut wm, c: &Client, focused: bool) {
-//     wm.updatenumlockmask();
-//     let modifiers = vec![0, xlib::LockMask, wm.numlockmask, xlib::LockMask|wm.numlockmask];
-//     unsafe { xlib::XUngrabButton(wm.drw.dpy, xlib::AnyButton as u32, xlib::AnyModifier, c.win) };
-//     if focused {
-//         for b in config::buttons.iter() {
-//             /*if b.click == ClkClientWin {
-//             TODO
-//         }*/
-//         }
-//     } else {
-//         unsafe { xlib::XGrabButton(wm.drw.dpy, xlib::AnyButton as u32, xlib::AnyModifier, c.win, 0, (xlib::ButtonPressMask|xlib::ButtonReleaseMask) as u32, xlib::GrabModeAsync, xlib::GrabModeSync, 0, 0) };
-//     }
-// }
-
-fn updatenumlockmask(wm: WM) -> WM {
-    let modmap = unsafe { (*xlib::XGetModifierMapping(wm.drw.dpy)) };
-    let modifiermap = unsafe { Vec::from_raw_parts(modmap.modifiermap, 8 * modmap.max_keypermod as usize, 8 * modmap.max_keypermod as usize) };
-    for i in 0..8 {
-        for j in 0..modmap.max_keypermod {
-            if modifiermap[(i * modmap.max_keypermod + j) as usize] == unsafe { xlib::XKeysymToKeycode(wm.drw.dpy, keysym::XK_Num_Lock as u64) } {
-                return WM {
-                    numlockmask: 1 << i,
-                    ..wm
-                }
-            }
-        }
-    }
-    WM { numlockmask:0, ..wm}
-    // unsafe { xlib::XFreeModifiermap(&mut modmap); } TODO Causes a crash for some reason
 }
 
 /**
  * Manage a new Window
  */
 pub fn manage<'a>(wm: WM<'a>, w: xlib::Window, wa: xlib::XWindowAttributes) -> WM<'a> {
-    let c = client::updateTitle(client::createClient(w, wa, wm.selwsindex));
-    client::draw(&c, wm.drw.dpy);
     let mut wm = wm;
-    wm.wss[wm.selwsindex].clients.push(c);
+    let c = client::updateTitle(client::createClient(w, wa, wm.selwsindex));
     // let mut trans = 0;
     // if unsafe { xlib::XGetTransientForHint(wm.drw.dpy, w, &mut trans) } != 0 {
     //     if let Some(t) = Client::from(trans, &wm.mons) {
@@ -259,7 +252,6 @@ pub fn manage<'a>(wm: WM<'a>, w: xlib::Window, wa: xlib::XWindowAttributes) -> W
     // };
     // unsafe { xlib::XConfigureWindow(wm.drw.dpy, w, xlib::CWBorderWidth as u32, &mut wc) };
     // unsafe { xlib::XSetWindowBorder(wm.drw.dpy, w, wm.scheme[SCHEMENORM].border.pix) };
-    // c.configure(wm.drw.dpy);
     // c.updatewindowtype(wm.drw.dpy, &wm.netatom);
     // c.updatesizehints(wm.drw.dpy);
     // c.updatewmhints(wm.drw.dpy, &wm.mons[wm.selmonindex]);
@@ -273,6 +265,16 @@ pub fn manage<'a>(wm: WM<'a>, w: xlib::Window, wa: xlib::XWindowAttributes) -> W
     //     unsafe { xlib::XRaiseWindow(wm.drw.dpy, c.win) };
     // }
     // TODO
+
+    // Add the client to the current workspace and draw it
+    wm.wss[wm.selwsindex].clients.push(c);
+    if let Some(c) = wm.wss[wm.selwsindex].clients.last() {
+        client::draw(c, wm.drw.dpy);
+    }
+
+    // Update geometry of the current workspace
+    let ws = workspace::updateGeom(wm.wss.remove(wm.selwsindex), wm.drw.dpy);
+    wm.wss.insert(wm.selwsindex, ws);
     wm
     // focus(None) TODO
 }
