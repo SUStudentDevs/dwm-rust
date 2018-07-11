@@ -172,8 +172,7 @@ pub fn grabKeys(wm: WM) -> WM {
 /**
  * Updates the status bars
  */
-pub fn updateBars(wm: WM) -> WM {
-    let mut wm = wm;
+pub fn updateBars(mut wm: WM) -> WM {
     let mut wa = xlib::XSetWindowAttributes {
         background_pixmap: xlib::ParentRelative as u64,
         background_pixel: 0,
@@ -223,8 +222,7 @@ pub fn updateStatus(wm: WM) -> WM {
 /**
  * Manage a new Window
  */
-pub fn manage<'a>(wm: WM<'a>, w: xlib::Window, wa: xlib::XWindowAttributes) -> WM<'a> {
-    let mut wm = wm;
+pub fn manage<'a>(mut wm: WM<'a>, w: xlib::Window, wa: xlib::XWindowAttributes) -> WM<'a> {
     let c = client::updateTitle(client::createClient(w, wa, wm.selwsindex));
     // let mut trans = 0;
     // if unsafe { xlib::XGetTransientForHint(wm.drw.dpy, w, &mut trans) } != 0 {
@@ -266,15 +264,15 @@ pub fn manage<'a>(wm: WM<'a>, w: xlib::Window, wa: xlib::XWindowAttributes) -> W
     // }
     // TODO
 
-    // Add the client to the current workspace and draw it
+    // Add the client to the current workspace
     wm.wss[wm.selwsindex].clients.push(c);
-    if let Some(c) = wm.wss[wm.selwsindex].clients.last() {
-        client::draw(c, wm.drw.dpy);
-    }
-
     // Update geometry of the current workspace
     let ws = workspace::updateGeom(wm.wss.remove(wm.selwsindex), wm.drw.dpy);
     wm.wss.insert(wm.selwsindex, ws);
+    // Draw the client on the screen
+    if let Some(c) = wm.wss[wm.selwsindex].clients.last() {
+        client::draw(c, wm.drw.dpy);
+    }
     wm
     // focus(None) TODO
 }

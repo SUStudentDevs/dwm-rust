@@ -12,19 +12,47 @@ use drw::Drw;
 use drw::clrscheme::ClrScheme;
 use config;
 
+/// Arrange functions
+pub fn tileArrange(mut ws: Workspace) -> Workspace {
+    let x = minX(&ws); let y = minY(&ws); let w = maxW(&ws); let h = maxH(&ws);
+    if ws.clients.len() == 1 { // If there is only one window
+        Workspace {
+            clients: vec! [client::setGeom(ws.clients.remove(0), x, y, w, h)],
+            ..ws
+        }
+    } else if ws.clients.len() > 1 {
+        ws
+    } else {
+        ws
+    }
+}
+
+pub fn monocleArrange(ws: Workspace) -> Workspace {
+    // TODO
+    ws
+}
+
+pub fn noArrange(ws: Workspace) -> Workspace {
+    ws // Nothing
+}
+
+pub fn gridArrange(ws: Workspace) -> Workspace {
+    // TODO
+    ws
+}
+
 /**
  * Stores a layout
  */
 pub struct Layout<'a> {
     pub symbol: &'a str,
-    pub arrange: fn(Workspace) -> Workspace
+    pub arrange: fn (Workspace) -> Workspace
 }
 
 /**
  * Stores a monitor
  */
 pub struct Workspace<'a> {
-    pub ltsymbol: &'a str,
     pub mfact: f32,
     pub nmaster: u32,
     pub num: i32,
@@ -38,7 +66,7 @@ pub struct Workspace<'a> {
     pub topbar: bool,
     pub clients: Vec<Client<'a>>,
     pub barwin: xlib::Window,
-    pub lt: Vec<&'a Layout<'a>>,
+    pub lt: Layout<'a>,
     pub pertag: Pertag<'a>
 }
 
@@ -53,7 +81,6 @@ impl<'a> PartialEq for Workspace<'a> {
  */
 pub fn createWorkspace<'a>(tag: &'a str) -> Workspace<'a> {
     let mut mon = Workspace {
-        ltsymbol: config::layouts[0].symbol.clone(),
         mfact: config::mfact,
         nmaster: config::nmaster,
         num: 0,
@@ -67,7 +94,7 @@ pub fn createWorkspace<'a>(tag: &'a str) -> Workspace<'a> {
         topbar: config::topbar,
         clients: Vec::new(),
         barwin: 0,
-        lt: Vec::new(),
+        lt: Layout { symbol: &config::layouts[0].symbol, arrange: config::layouts[0].arrange },
         pertag: Pertag {
             curtag: 1,
             prevtag: 1,
@@ -80,8 +107,6 @@ pub fn createWorkspace<'a>(tag: &'a str) -> Workspace<'a> {
         }
     };
     mon.tagset.push(1); mon.tagset.push(1);
-    mon.lt.push(&config::layouts[0]);
-    mon.lt.push(&config::layouts[1 % config::layouts.len()]);
     mon
     // TODO tags
 }
@@ -105,11 +130,12 @@ pub fn minX(ws: &Workspace) -> i32 { ws.x }
 pub fn maxW(ws: &Workspace) -> u32 { ws.w }
 
 pub fn minY(ws : &Workspace) -> i32 {
-    if ws.by == ws.y { ws.bh as i32} else { ws.y }
+    if ws.showbar && ws.topbar { ws.bh as i32} else { ws.y }
 }
 
 pub fn maxH(ws: &Workspace) -> u32 {
-    if ws.by == (ws.h as i32) - (ws.bh as i32) { ws.by as u32 } else { ws.h }
+    let m = if ws.showbar { ws.h - ws.bh as u32 } else { ws.h };
+    m
 }
 
 /**
@@ -207,8 +233,7 @@ pub fn drawBar<'a>(drw: Drw<'a>, bh: u32, scheme: &Vec<ClrScheme>, wss: &Vec<Wor
 /**
  * Add a Client to this Workspace
  */
-pub fn addClient<'a>(ws: Workspace<'a>, c: Client<'a>) -> Workspace<'a> {
-    let mut ws = ws;
+pub fn addClient<'a>(mut ws: Workspace<'a>, c: Client<'a>) -> Workspace<'a> {
     ws.clients.push(c);
     ws
 }
@@ -217,9 +242,10 @@ pub fn addClient<'a>(ws: Workspace<'a>, c: Client<'a>) -> Workspace<'a> {
  * Updates geometry of the Workspace
  */
 pub fn updateGeom<'a>(ws: Workspace<'a>, dpy: &mut xlib::Display) -> Workspace<'a> {
+    let arrange = ws.lt.arrange;
+    let ws = arrange(ws);
     for c in ws.clients.iter() {
         client::configure(c, dpy);
     }
     ws
 }
-

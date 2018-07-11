@@ -60,33 +60,6 @@ pub fn findFromWindow<'a>(window : xlib::Window, mons: &'a Vec<Workspace<'a>>) -
     None
 }
 
-/*
- * Set the window to fullscreen (or not)
- */
-// pub fn setfullscreen(client: &Client, dpy: &mut xlib::Display, fullscreen: bool, netatom: &Vec<xlib::Atom>) {
-//     println!("dwm-rust : full screen !");
-//     if fullscreen && !self.isfullscreen {
-//         unsafe { xlib::XChangeProperty(dpy, self.win, netatom[NETWMSTATE], xlib::XA_ATOM, 32, xlib::PropModeReplace, &(netatom[NETWMFULLSCREEN] as u8), 1) };
-//         self.isfullscreen = true;
-//         self.oldstate = self.isfloating;
-//         self.oldbw = self.bw;
-//         self.isfloating = true;
-//         // self.resize(self.mon.mx, self.mon.my, self.mon.mw, self.mon.mh); TODO
-//         unsafe { xlib::XRaiseWindow(dpy, self.win) };
-//     } else if !fullscreen && self.isfullscreen {
-//         unsafe { xlib::XChangeProperty(dpy, self.win, netatom[NETWMSTATE], xlib::XA_ATOM, 32, xlib::PropModeReplace, &0, 0) };
-//         self.isfullscreen = false;
-//         self.isfloating = self.oldstate;
-//         self.bw = self.oldbw;
-//         self.x = self.oldx;
-//         self.y = self.oldy;
-//         self.w = self.oldw;
-//         self.h = self.oldh;
-//         // self.resize(self.x, self.y, self.w, self.h); TODO
-//         // self.mon.arrange(); TODO
-//     }
-// }
-
 /**
  * Total width of the window (including borders)
  */
@@ -99,6 +72,19 @@ pub fn width(client: &Client) -> u32 {
  */
 pub fn height(client: &Client) -> u32 {
     client.h + 2 * client.bw
+}
+
+/**
+ * Sets the window x, y, width and height (use total width and height, including bar width)
+ */
+pub fn setGeom(c: Client, x:i32, y:i32, w: u32, h: u32) -> Client {
+    Client {
+        x,
+        y,
+        w: w - c.bw*2,
+        h: h - c.bw*2,
+        ..c
+    }
 }
 
 /**
@@ -135,6 +121,33 @@ pub fn hide(c: &Client, dpy: &mut xlib::Display) {
 pub fn freeClient(c: Client, dpy: &mut xlib::Display) {
     unsafe { xlib::XDestroyWindow(dpy, c.win) };
 }
+
+/*
+ * Set the window to fullscreen (or not)
+ */
+// pub fn setfullscreen(client: &Client, dpy: &mut xlib::Display, fullscreen: bool, netatom: &Vec<xlib::Atom>) {
+//     println!("dwm-rust : full screen !");
+//     if fullscreen && !self.isfullscreen {
+//         unsafe { xlib::XChangeProperty(dpy, self.win, netatom[NETWMSTATE], xlib::XA_ATOM, 32, xlib::PropModeReplace, &(netatom[NETWMFULLSCREEN] as u8), 1) };
+//         self.isfullscreen = true;
+//         self.oldstate = self.isfloating;
+//         self.oldbw = self.bw;
+//         self.isfloating = true;
+//         // self.resize(self.mon.mx, self.mon.my, self.mon.mw, self.mon.mh); TODO
+//         unsafe { xlib::XRaiseWindow(dpy, self.win) };
+//     } else if !fullscreen && self.isfullscreen {
+//         unsafe { xlib::XChangeProperty(dpy, self.win, netatom[NETWMSTATE], xlib::XA_ATOM, 32, xlib::PropModeReplace, &0, 0) };
+//         self.isfullscreen = false;
+//         self.isfloating = self.oldstate;
+//         self.bw = self.oldbw;
+//         self.x = self.oldx;
+//         self.y = self.oldy;
+//         self.w = self.oldw;
+//         self.h = self.oldh;
+//         // self.resize(self.x, self.y, self.w, self.h); TODO
+//         // self.mon.arrange(); TODO
+//     }
+// }
 
 /*
  * Gets Atom property

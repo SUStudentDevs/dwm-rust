@@ -194,9 +194,8 @@ pub fn isUniqueGeom(unique: &Vec<xinerama::XineramaScreenInfo>, n: usize, info: 
 /**
  * Main program loop
  */
-pub fn run(wm: WM) -> WM {
+pub fn run(mut wm: WM) -> WM {
     let ev = &mut xlib::XEvent { any: xlib::XAnyEvent { type_: 0, serial: 0, send_event: 0, display: wm.drw.dpy, window: wm.root } }; // Dummy value
-    let mut wm = wm;
     unsafe {
         xlib::XSync(wm.drw.dpy, 0);
         while wm.running && xlib::XNextEvent(wm.drw.dpy, ev) == 0 {
@@ -242,7 +241,6 @@ pub fn handleEvent<'a>(wm: WM<'a>, ev: &xlib::XEvent) -> WM<'a> {
 pub fn configureRequest<'a>(wm: WM<'a>, e: &xlib::XEvent) -> WM <'a> {
     let ev = unsafe { e.configure_request };
     if let Some(c) = client::findFromWindow(ev.window, &wm.wss) {
-        println!("Heu ?");
         client::configure(c, wm.drw.dpy);
     } else {
         let mut wc = xlib::XWindowChanges {
@@ -350,27 +348,6 @@ pub fn spawn(arg: &Arg, _: &mut WM) {
  */
 pub fn quit(_: &Arg, wm: &mut WM) {
     wm.running = false;
-}
-
-/// Arrange functions
-fn tileArrange(ws: Workspace) -> Workspace {
-    // TODO
-    ws
-}
-
-fn monocleArrange(ws: Workspace) -> Workspace {
-    // TODO
-    ws
-}
-
-fn noArrange(ws: Workspace) -> Workspace {
-    // Nothing
-    ws
-}
-
-fn gridArrange(ws: Workspace) -> Workspace {
-    // TODO
-    ws
 }
 
 /**

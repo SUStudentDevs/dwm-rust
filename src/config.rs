@@ -2,7 +2,7 @@ use x11::xlib;
 use x11::keysym::*;
 
 use { Layout, Key, Button, Arg };
-use { tileArrange, monocleArrange, noArrange, gridArrange };
+use wm::workspace::{ tileArrange, monocleArrange, noArrange, gridArrange };
 use { spawn, quit };
 
 /// Fonts (the first one available is used)
@@ -17,13 +17,13 @@ pub const selfgcolor: &str = "#eeeeee";
 /// Background color
 pub const backgroundColor: u64 = 0x00aa00;
 /// Size (in pixels) of window borders
-pub const borderpx: u32 = 1;
+pub const borderpx: u32 = 2;
 /// Snap pixel
 pub const snap: u32 = 32;
 /// Show the status bar (false means no bar)
 pub const showbar: bool = true;
 /// Show the status bar on top (false means bottom)
-pub const topbar: bool = false;
+pub const topbar: bool = true;
 
 /// Ratio of master area to stack area width
 pub const mfact: f32 = 0.5;

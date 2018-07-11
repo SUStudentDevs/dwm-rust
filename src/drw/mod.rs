@@ -88,8 +88,7 @@ pub fn setScheme<'a>(drw: Drw<'a>, scheme: &ClrScheme) -> Drw<'a> {
 /**
  * Loads fonts
  */
-pub fn loadFonts<'a>(drw: Drw<'a>, fontnames: Vec<&str>) -> Drw<'a> {
-    let mut drw = drw;
+pub fn loadFonts<'a>(mut drw: Drw<'a>, fontnames: Vec<&str>) -> Drw<'a> {
     for f in fontnames {
         if let Some(font) = fnt::createFont(drw.dpy, drw.screen, Some(f), None) {
             drw.fonts.push(font);
