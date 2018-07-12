@@ -276,3 +276,21 @@ pub fn manage<'a>(mut wm: WM<'a>, w: xlib::Window, wa: xlib::XWindowAttributes) 
     wm
     // focus(None) TODO
 }
+
+/**
+ * Unmanage a Client
+ */
+pub fn unManage<'a>(wm: WM<'a>, w: xlib::Window) -> WM<'a> {
+    let mut wm = WM {
+        wss : wm.wss.into_iter().map(|ws| {
+            Workspace {
+                clients: ws.clients.into_iter().filter(|c| { c.win != w } ).collect(),
+                ..ws
+            }
+        }).collect(),
+        ..wm
+    };
+    let ws = workspace::updateGeom(wm.wss.remove(wm.selwsindex), wm.drw.dpy);
+    wm.wss.insert(wm.selwsindex, ws);
+    wm
+}

@@ -14,14 +14,19 @@ use config;
 
 /// Arrange functions
 pub fn tileArrange(mut ws: Workspace) -> Workspace {
+    let n = ws.clients.len() as u32;
     let x = minX(&ws); let y = minY(&ws); let w = maxW(&ws); let h = maxH(&ws);
-    if ws.clients.len() == 1 { // If there is only one window
+    if n == 1 { // If there is only one window
         Workspace {
             clients: vec! [client::setGeom(ws.clients.remove(0), x, y, w, h)],
             ..ws
         }
-    } else if ws.clients.len() > 1 {
-        ws
+    } else if n > 1 {
+        let w = w/n;
+        Workspace {
+            clients: ws.clients.into_iter().enumerate().map(|(i, c)| { client::setGeom(c, x+(i as i32 * w as i32), y, w, h) }).collect(),
+            ..ws
+        }
     } else {
         ws
     }

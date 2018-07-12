@@ -118,7 +118,7 @@ pub fn hide(c: &Client, dpy: &mut xlib::Display) {
 /**
  * Destroys the Window and frees the client
  */
-pub fn freeClient(c: Client, dpy: &mut xlib::Display) {
+pub fn destroyClient(c: Client, dpy: &mut xlib::Display) {
     unsafe { xlib::XDestroyWindow(dpy, c.win) };
 }
 

@@ -101,7 +101,7 @@ fn main() {
         println!("Warning : no locale support");
     } if let Some(dpy) = Some( unsafe { &mut(*xlib::XOpenDisplay(ptr::null())) }) {
         // This is where we'll work
-        checkotherwm(dpy);
+        checkOtherWm(dpy);
         let wm = cleanup(run(setup(dpy)));
         unsafe { xlib::XCloseDisplay(wm.drw.dpy) };
     } else {
@@ -132,7 +132,7 @@ unsafe extern "C" fn xerror(_dpy: *mut xlib::Display, ee: *mut xlib::XErrorEvent
 /**
  * Checks for another WM running. If there is one, prints an error and exits.
  */
-pub fn checkotherwm(dpy: *mut xlib::Display) {
+pub fn checkOtherWm(dpy: *mut xlib::Display) {
     unsafe {
         xlib::XSetErrorHandler(Some(xerrorstart));
         xlib::XSelectInput(dpy, xlib::XDefaultRootWindow(dpy), xlib::SubstructureRedirectMask);
@@ -213,7 +213,7 @@ pub fn handleEvent<'a>(wm: WM<'a>, ev: &xlib::XEvent) -> WM<'a> {
         match ev.type_ {
             //xlib::ButtonPress => buttonpress(wm, ev),
             xlib::ConfigureRequest => configureRequest(wm, ev),
-            //xlib::ConfigureNotify => configureNotify(wm, ev),
+            xlib::ConfigureNotify => configureNotify(wm, ev),
             //xlib::EnterNotify => enternotify(wm, ev),
             xlib::DestroyNotify => destroyNotify(wm, ev),
             xlib::KeyPress => keyPress(wm, ev),
@@ -238,7 +238,7 @@ pub fn handleEvent<'a>(wm: WM<'a>, ev: &xlib::XEvent) -> WM<'a> {
 /**
  * Handles a ConfigureRequest event : before changing the configuration of a window
  */
-pub fn configureRequest<'a>(wm: WM<'a>, e: &xlib::XEvent) -> WM <'a> {
+pub fn configureRequest<'a>(wm: WM<'a>, e: &xlib::XEvent) -> WM<'a> {
     let ev = unsafe { e.configure_request };
     if let Some(c) = client::findFromWindow(ev.window, &wm.wss) {
         client::configure(c, wm.drw.dpy);
@@ -253,6 +253,15 @@ pub fn configureRequest<'a>(wm: WM<'a>, e: &xlib::XEvent) -> WM <'a> {
         unsafe { xlib::XConfigureWindow(wm.drw.dpy, ev.window, ev.value_mask as u32, &mut wc) };
     }
     unsafe { xlib::XSync(wm.drw.dpy, 0) };
+    wm
+}
+
+/**
+ * Handles a ConfigureNotify event : after reconfiguration of a window
+ */
+pub fn configureNotify<'a>(wm : WM<'a>, e: &xlib::XEvent) -> WM<'a> {
+    let ev = unsafe { e.configure };
+    // TODO
     wm
 }
 
@@ -288,17 +297,6 @@ pub fn configureRequest<'a>(wm: WM<'a>, e: &xlib::XEvent) -> WM <'a> {
 // }
 
 /**
- * Handles Window destruction
- */
-pub fn destroyNotify<'a>(wm: WM<'a>, e: &xlib::XEvent) -> WM<'a> {
-    let ev = unsafe { e.destroy_window };
-    if let Some(c) = client::findFromWindow(ev.window, &wm.wss) {
-        // TODO
-    }
-    wm
-}
-
-/**
  * Handles a KeyPress event
  */
 pub fn keyPress<'a>(mut wm: WM<'a>, e: &xlib::XEvent) -> WM<'a> {
@@ -329,6 +327,14 @@ pub fn mapRequest<'a>(wm: WM<'a>, e: &xlib::XEvent) -> WM<'a> {
     } else {
         wm
     }
+}
+
+/**
+ * Handles Window destruction
+ */
+pub fn destroyNotify<'a>(wm: WM<'a>, e: &xlib::XEvent) -> WM<'a> {
+    let ev = unsafe { e.destroy_window };
+    wm::unManage(wm, ev.window)
 }
 
 /**
