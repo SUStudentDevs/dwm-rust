@@ -254,3 +254,17 @@ pub fn updateGeom<'a>(ws: Workspace<'a>, dpy: &mut xlib::Display) -> Workspace<'
     }
     ws
 }
+
+/**
+ * Draws all the windows in this workspace
+ */
+pub fn showAllClients(ws: &Workspace, dpy: &mut xlib::Display) {
+    for c in ws.clients.iter() { client::show(c, dpy); }
+}
+
+/**
+ * Draws all the windows in this workspace
+ */
+pub fn hideAllClients(ws: &Workspace, dpy: &mut xlib::Display) {
+    for c in ws.clients.iter() { client::hide(c, dpy); }
+}

@@ -18,6 +18,7 @@ pub mod drw;
 pub mod config;
 
 use wm::WM;
+use wm::workspace;
 use wm::workspace::{ Layout, Workspace };
 use wm::client;
 use wm::client::Client;
@@ -53,7 +54,7 @@ pub union Arg<'a> {
 pub struct Key<'a> {
     modif: u32,
     keysym: xlib::KeySym,
-    func: fn (&Arg, &mut WM),
+    func: for<'b> fn (&Arg, WM<'b>) -> WM<'b>,
     arg: Arg<'a>
 }
 
@@ -71,7 +72,7 @@ pub struct Button<'a> {
     click: Click,
     mask: u32,
     button: u32,
-    func: fn (Arg, &mut WM),
+    func: for<'b> fn (&Arg, WM<'b>) -> WM<'b>,
     arg: Arg<'a>
 }
 
@@ -262,7 +263,7 @@ pub fn configureRequest<'a>(wm: WM<'a>, e: &xlib::XEvent) -> WM<'a> {
 pub fn configureNotify<'a>(wm : WM<'a>, e: &xlib::XEvent) -> WM<'a> {
     let ev = unsafe { e.configure };
     // TODO
-    wm
+    wm::updateStatus(wm)
 }
 
 // /**
@@ -306,7 +307,7 @@ pub fn keyPress<'a>(mut wm: WM<'a>, e: &xlib::XEvent) -> WM<'a> {
         if keysym == config::keys[i].keysym
         && cleanmask(ev.state) == cleanmask(config::keys[i].modif) {
             let func = config::keys[i].func;
-            func(&config::keys[i].arg, &mut wm);
+            return func(&config::keys[i].arg, wm);
         }
     }
     wm
@@ -340,20 +341,43 @@ pub fn destroyNotify<'a>(wm: WM<'a>, e: &xlib::XEvent) -> WM<'a> {
 /**
  * Execute a shell command
  */
-pub fn spawn(arg: &Arg, _: &mut WM) {
+pub fn spawn<'a>(arg: &Arg, wm: WM<'a>) -> WM<'a> {
     let v : Vec<&str> = unsafe { arg.s.split(' ').collect() };
     let mut command = Command::new(v[0]);
     for i in 1..v.len() {
         command.arg(v[i]);
     }
     command.spawn().expect(&["Command", unsafe { arg.s }, "has failed..."].join(" ")[..]);
+    wm
 }
+
+/**
+ * Change to another Workspace
+ */
+pub fn changeWS<'a>(arg: &Arg, wm: WM<'a>) -> WM<'a> {
+    let index = unsafe { arg.i };
+    if index > 0 && index <= wm.wss.len() as i32 {
+        workspace::hideAllClients(&wm.wss[wm.selwsindex], wm.drw.dpy);
+        let wm = wm::updateStatus(WM {
+            selwsindex: (index-1) as usize,
+            ..wm
+        });
+        workspace::showAllClients(&wm.wss[wm.selwsindex], wm.drw.dpy);
+        wm
+    } else {
+        wm
+    }
+}
+
 
 /**
  * Quit the WM
  */
-pub fn quit(_: &Arg, wm: &mut WM) {
-    wm.running = false;
+pub fn quit<'a>(_: &Arg, wm: WM<'a>) -> WM<'a> {
+    WM {
+        running: false,
+        ..wm
+    }
 }
 
 /**

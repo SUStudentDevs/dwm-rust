@@ -271,7 +271,7 @@ pub fn manage<'a>(mut wm: WM<'a>, w: xlib::Window, wa: xlib::XWindowAttributes) 
     wm.wss.insert(wm.selwsindex, ws);
     // Draw the client on the screen
     if let Some(c) = wm.wss[wm.selwsindex].clients.last() {
-        client::draw(c, wm.drw.dpy);
+        client::show(c, wm.drw.dpy);
     }
     wm
     // focus(None) TODO

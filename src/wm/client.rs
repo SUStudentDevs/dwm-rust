@@ -104,7 +104,7 @@ pub fn configure<'a>(c: &'a Client<'a>, dpy: &mut xlib::Display) {
 /**
  * Draws the Window on the screen
  */
-pub fn draw(c: &Client, dpy: &mut xlib::Display) {
+pub fn show(c: &Client, dpy: &mut xlib::Display) {
     unsafe { xlib::XMapWindow(dpy, c.win) };
 }
 

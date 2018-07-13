@@ -3,7 +3,7 @@ use x11::keysym::*;
 
 use { Layout, Key, Button, Arg };
 use wm::workspace::{ tileArrange, monocleArrange, noArrange, gridArrange };
-use { spawn, quit };
+use { spawn, quit, changeWS };
 
 /// Fonts (the first one available is used)
 pub const fonts: [&str; 1] = ["Fixed:size=11"];
@@ -45,7 +45,7 @@ pub const tags: [&str; 9] = ["1", "2", "3", "4", "5", "6", "7", "8", "9"];
 pub const MODKEY: u32 = xlib::Mod4Mask;
 
 /// Key combinations and their actions
-pub const keys: [Key; 6] = [
+pub const keys: [Key; 15] = [
     //    modifier              key                 function                argument
     Key { modif:MODKEY,                 keysym:XK_Return as u64, func:spawn, arg:Arg {s: "gnome-terminal -e tmux"}},
     Key { modif:MODKEY,                 keysym:XK_d as u64, func:spawn, arg:Arg {s: "rofi -show run"}},
@@ -53,6 +53,16 @@ pub const keys: [Key; 6] = [
     Key { modif:MODKEY|xlib::ShiftMask, keysym:XF86XK_AudioLowerVolume as u64, func:spawn, arg:Arg {s: "amixer -q sset 'Master' 5%-"}},
     Key { modif:MODKEY|xlib::ShiftMask, keysym:XF86XK_AudioRaiseVolume as u64, func:spawn, arg:Arg {s: "amixer -q sset 'Master' 5%+"}},
     Key { modif:MODKEY|xlib::ShiftMask, keysym:XF86XK_AudioMute as u64, func:spawn, arg:Arg {s: "amixer -q sset 'Master' "}},
+
+    Key { modif:MODKEY,                 keysym:XK_1 as u64, func:changeWS, arg:Arg {i: 1}},
+    Key { modif:MODKEY,                 keysym:XK_2 as u64, func:changeWS, arg:Arg {i: 2}},
+    Key { modif:MODKEY,                 keysym:XK_3 as u64, func:changeWS, arg:Arg {i: 3}},
+    Key { modif:MODKEY,                 keysym:XK_4 as u64, func:changeWS, arg:Arg {i: 4}},
+    Key { modif:MODKEY,                 keysym:XK_5 as u64, func:changeWS, arg:Arg {i: 5}},
+    Key { modif:MODKEY,                 keysym:XK_6 as u64, func:changeWS, arg:Arg {i: 6}},
+    Key { modif:MODKEY,                 keysym:XK_7 as u64, func:changeWS, arg:Arg {i: 7}},
+    Key { modif:MODKEY,                 keysym:XK_8 as u64, func:changeWS, arg:Arg {i: 8}},
+    Key { modif:MODKEY,                 keysym:XK_9 as u64, func:changeWS, arg:Arg {i: 9}},
 ];
 
 /// Buttons and their actions
