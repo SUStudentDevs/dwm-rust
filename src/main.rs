@@ -212,29 +212,18 @@ pub fn run(mut wm: WM) -> WM {
 pub fn handleEvent<'a>(wm: WM<'a>, ev: &xlib::XEvent) -> WM<'a> {
     unsafe {
         match ev.type_ {
-            //xlib::ButtonPress => buttonpress(wm, ev),
             xlib::ConfigureRequest => configureRequest(wm, ev),
             xlib::ConfigureNotify => configureNotify(wm, ev),
             //xlib::EnterNotify => enternotify(wm, ev),
             xlib::DestroyNotify => destroyNotify(wm, ev),
             xlib::KeyPress => keyPress(wm, ev),
+            xlib::ButtonPress => buttonPress(wm, ev),
             xlib::MapRequest => mapRequest(wm, ev),
             // TODO : les autres handlers
             _ => wm
         }
     }
 }
-
-// /**
-//  * Handles a ButtonPress event
-//  */
-// pub fn buttonpress(wm: &mut WM, e: &xlib::XEvent) {
-//     let arg = Arg {i: 0};
-//     let ev = unsafe { e.button };
-//     // click = CLKROOTWIN;
-//     // let m = wintomon(ev.window);
-//     // TODO
-// }
 
 /**
  * Handles a ConfigureRequest event : before changing the configuration of a window
@@ -314,6 +303,15 @@ pub fn keyPress<'a>(mut wm: WM<'a>, e: &xlib::XEvent) -> WM<'a> {
 }
 
 /**
+ * Handles a button press
+ */
+pub fn buttonPress<'a>(wm: WM<'a>, e: &xlib::XEvent) -> WM<'a> {
+    let ev = unsafe { e.button };
+    // TODO
+    wm
+}
+
+/**
  * Handles a MapRequest event
  */
 pub fn mapRequest<'a>(wm: WM<'a>, e: &xlib::XEvent) -> WM<'a> {
@@ -335,11 +333,15 @@ pub fn mapRequest<'a>(wm: WM<'a>, e: &xlib::XEvent) -> WM<'a> {
  */
 pub fn destroyNotify<'a>(wm: WM<'a>, e: &xlib::XEvent) -> WM<'a> {
     let ev = unsafe { e.destroy_window };
-    wm::unManage(wm, ev.window)
+    wm::updateStatus(wm::unManage(wm, ev.window))
 }
 
 /**
- * Execute a shell command
+ * Executes a shell command
+ *
+ * # Arguments
+ * * `arg` - Reference to an Arg containing the command (&str) to execute
+ * * `wm` - Window Manager
  */
 pub fn spawn<'a>(arg: &Arg, wm: WM<'a>) -> WM<'a> {
     let v : Vec<&str> = unsafe { arg.s.split(' ').collect() };
@@ -353,10 +355,14 @@ pub fn spawn<'a>(arg: &Arg, wm: WM<'a>) -> WM<'a> {
 
 /**
  * Change to another Workspace
+ *
+ * # Arguments
+ * * `arg` - Reference to an Arg containing the number (u32) of the Workspace to switch to
+ * * `wm` - Window Manager
  */
-pub fn changeWS<'a>(arg: &Arg, wm: WM<'a>) -> WM<'a> {
-    let index = unsafe { arg.i };
-    if index > 0 && index <= wm.wss.len() as i32 {
+pub fn changeWs<'a>(arg: &Arg, wm: WM<'a>) -> WM<'a> {
+    let index = unsafe { arg.u };
+    if index > 0 && index <= wm.wss.len() as u32 && (index-1) != wm.selwsindex as u32 {
         workspace::hideAllClients(&wm.wss[wm.selwsindex], wm.drw.dpy);
         let wm = wm::updateStatus(WM {
             selwsindex: (index-1) as usize,
@@ -369,9 +375,62 @@ pub fn changeWS<'a>(arg: &Arg, wm: WM<'a>) -> WM<'a> {
     }
 }
 
+/**
+ * Moves a Client to another Workspace
+ *
+ * # Arguments
+ * * `arg` - Reference to an Arg containing the number (u32) of the Workspace to move the client to
+ * * `wm` - Window Manager
+ */
+pub fn moveClientToWs<'a>(arg: &Arg, wm: WM<'a>) -> WM<'a> {
+    let index = (unsafe { arg.u } - 1) as usize;
+    if index >= 0 && index < wm.wss.len() as usize && index != wm.selwsindex as usize {
+        let (mut wm, w) = wm::findPointedWindow(wm);
+        {
+            for i in 0..wm.wss[wm.selwsindex].clients.len() {
+                if wm.wss[wm.selwsindex].clients[i].win == w {
+                    let c = wm.wss[wm.selwsindex].clients.remove(i);
+                    wm.wss[index].clients.insert(0, c);
+                    break;
+                }
+            }
+        }
+        let ws = workspace::updateGeom(wm.wss.remove(wm.selwsindex), wm.drw.dpy);
+        wm.wss.insert(wm.selwsindex, ws);
+        let ws = workspace::updateGeom(wm.wss.remove(index), wm.drw.dpy);
+        workspace::hideAllClients(&ws, wm.drw.dpy);
+        wm.wss.insert(index, ws);
+        wm::updateStatus(wm)
+    } else {
+        wm
+    }
+}
 
 /**
- * Quit the WM
+ * Closes a Client
+ *
+ * # Arguments
+ * * `arg` - Reference to an Arg containing whatever
+ * * `wm` - Window Manager
+ */
+pub fn closeClient<'a>(arg: &Arg, wm: WM<'a>) -> WM<'a> {
+    let (mut wm, w) = wm::findPointedWindow(wm);
+    for i in 0..wm.wss.len() {
+        let ws = &mut wm.wss[i];
+        for i in 0..ws.clients.len() {
+            if ws.clients[i].win == w {
+                let c = ws.clients.remove(i);
+                client::destroyClient(c, wm.drw.dpy);
+                break;
+            }
+        }
+    }
+    wm
+}
+
+
+/**
+ * Quits the WM
  */
 pub fn quit<'a>(_: &Arg, wm: WM<'a>) -> WM<'a> {
     WM {
@@ -381,7 +440,7 @@ pub fn quit<'a>(_: &Arg, wm: WM<'a>) -> WM<'a> {
 }
 
 /**
- * Cleanup and free memory
+ * Cleanup and frees memory
  */
 fn cleanup(wm: WM) -> WM {
     // TODO

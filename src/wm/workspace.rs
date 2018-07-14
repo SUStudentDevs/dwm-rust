@@ -236,11 +236,23 @@ pub fn drawBar<'a>(drw: Drw<'a>, bh: u32, scheme: &Vec<ClrScheme>, wss: &Vec<Wor
 }
 
 /**
- * Add a Client to this Workspace
+ * Adds a Client to this Workspace
  */
-pub fn addClient<'a>(mut ws: Workspace<'a>, c: Client<'a>) -> Workspace<'a> {
-    ws.clients.push(c);
-    ws
+pub fn addClient<'a>(ws: &'a mut Workspace<'a>, c: Client<'a>) {
+    ws.clients.insert(0, c);
+}
+
+/**
+ * Removes a Client from this Workspace, returning it
+ */
+pub fn removeClient<'a>(ws: &mut Workspace<'a>, c: &Client<'a>) -> Option<Client<'a>> {
+    for i in 0..ws.clients.len() {
+        if &ws.clients[i] == c {
+            let cl = ws.clients.remove(i);
+            return Some(cl);
+        }
+    }
+    None
 }
 
 /**

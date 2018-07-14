@@ -265,12 +265,12 @@ pub fn manage<'a>(mut wm: WM<'a>, w: xlib::Window, wa: xlib::XWindowAttributes) 
     // TODO
 
     // Add the client to the current workspace
-    wm.wss[wm.selwsindex].clients.push(c);
+    wm.wss[wm.selwsindex].clients.insert(0, c);
     // Update geometry of the current workspace
     let ws = workspace::updateGeom(wm.wss.remove(wm.selwsindex), wm.drw.dpy);
     wm.wss.insert(wm.selwsindex, ws);
     // Draw the client on the screen
-    if let Some(c) = wm.wss[wm.selwsindex].clients.last() {
+    if let Some(c) = wm.wss[wm.selwsindex].clients.first() {
         client::show(c, wm.drw.dpy);
     }
     wm
@@ -293,4 +293,19 @@ pub fn unManage<'a>(wm: WM<'a>, w: xlib::Window) -> WM<'a> {
     let ws = workspace::updateGeom(wm.wss.remove(wm.selwsindex), wm.drw.dpy);
     wm.wss.insert(wm.selwsindex, ws);
     wm
+}
+
+/**
+ * Find the Window the pointer is on
+ */
+pub fn findPointedWindow<'a>(wm: WM<'a>) -> (WM<'a>, xlib::Window) {
+    let root_return: &mut xlib::Window = &mut 0;
+    let child_return: &mut xlib::Window = &mut 0;
+    let root_x_return: &mut i32 = &mut 0;
+    let root_y_return: &mut i32 = &mut 0;
+    let win_x_return: &mut i32 = &mut 0;
+    let win_y_return: &mut i32 = &mut 0;
+    let mask_return: &mut u32 = &mut 0;
+    unsafe { xlib::XQueryPointer(wm.drw.dpy, wm.root, root_return, child_return, root_x_return, root_y_return, win_x_return, win_y_return, mask_return) };
+    (wm, *child_return)
 }
