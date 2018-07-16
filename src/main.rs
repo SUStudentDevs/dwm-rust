@@ -180,7 +180,7 @@ pub fn setup(dpy: &mut xlib::Display) -> WM {
         });
     }
     // focus(None); TODO
-    wm::setRootBackground(wm::grabKeys(wm))
+    executeStartCmds(wm::setRootBackground(wm::grabKeys(wm)))
 }
 
 pub fn isUniqueGeom(unique: &Vec<xinerama::XineramaScreenInfo>, n: usize, info: &xinerama::XineramaScreenInfo) -> bool {
@@ -190,6 +190,10 @@ pub fn isUniqueGeom(unique: &Vec<xinerama::XineramaScreenInfo>, n: usize, info: 
         }
     }
     true
+}
+
+pub fn executeStartCmds(wm: WM) -> WM {
+    config::startCmds.into_iter().map(|s| {Arg {s}}).fold(wm, |wm, a| { spawn(&a, wm) })
 }
 
 /**

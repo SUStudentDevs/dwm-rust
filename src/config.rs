@@ -47,7 +47,7 @@ pub const MODKEY: u32 = xlib::Mod4Mask;
 /// Key combinations and their actions
 pub const keys: [Key; 25] = [
     //    modifier              key                 function                argument
-    Key { modif:MODKEY,                 keysym:XK_Return as u64, func:spawn, arg:Arg {s: "gnome-terminal -e tmux"}},
+    Key { modif:MODKEY,                 keysym:XK_Return as u64, func:spawn, arg:Arg {s: "terminator"}},
     Key { modif:MODKEY,                 keysym:XK_d as u64, func:spawn, arg:Arg {s: "rofi -show run"}},
     Key { modif:MODKEY|xlib::ShiftMask, keysym:XK_e as u64, func:quit, arg:Arg {i: 0}},
 
@@ -83,4 +83,9 @@ pub const keys: [Key; 25] = [
 /// Buttons and their actions
 pub const buttons: [Button; 0] = [
 
+];
+
+/// Commands to execute at start of the wm
+pub const startCmds: [&str; 1] = [
+    "feh --bg-scale /home/vertmo/Images/Wallpapers/botw.png"
 ];
