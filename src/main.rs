@@ -2,6 +2,7 @@
 #![allow(non_snake_case)]
 
 extern crate x11;
+extern crate chrono;
 
 use std::env;
 use std::process;

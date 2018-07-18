@@ -24,6 +24,8 @@ pub const snap: u32 = 32;
 pub const showbar: bool = true;
 /// Show the status bar on top (false means bottom)
 pub const topbar: bool = true;
+// Bar time formatting
+pub const timeFormat: &str = "%H:%M:%S - %d %b %Y";
 
 /// Ratio of master area to stack area width
 pub const mfact: f32 = 0.5;
