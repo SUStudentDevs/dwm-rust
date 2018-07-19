@@ -224,6 +224,7 @@ pub fn handleEvent<'a>(wm: WM<'a>, ev: &xlib::XEvent) -> WM<'a> {
             xlib::KeyPress => keyPress(wm, ev),
             xlib::ButtonPress => buttonPress(wm, ev),
             xlib::MapRequest => mapRequest(wm, ev),
+            xlib::PropertyNotify => propertyNotify(wm, ev),
             // TODO : les autres handlers
             _ => wm
         }
@@ -292,6 +293,14 @@ pub fn configureNotify<'a>(wm : WM<'a>, e: &xlib::XEvent) -> WM<'a> {
 // }
 
 /**
+ * Handles Window destruction
+ */
+pub fn destroyNotify<'a>(wm: WM<'a>, e: &xlib::XEvent) -> WM<'a> {
+    let ev = unsafe { e.destroy_window };
+    wm::updateStatus(wm::unManage(wm, ev.window))
+}
+
+/**
  * Handles a KeyPress event
  */
 pub fn keyPress<'a>(mut wm: WM<'a>, e: &xlib::XEvent) -> WM<'a> {
@@ -334,11 +343,11 @@ pub fn mapRequest<'a>(wm: WM<'a>, e: &xlib::XEvent) -> WM<'a> {
 }
 
 /**
- * Handles Window destruction
+ * Handles a Property Notify event
  */
-pub fn destroyNotify<'a>(wm: WM<'a>, e: &xlib::XEvent) -> WM<'a> {
-    let ev = unsafe { e.destroy_window };
-    wm::updateStatus(wm::unManage(wm, ev.window))
+pub fn propertyNotify<'a>(wm: WM<'a>, e: &xlib::XEvent) -> WM<'a> {
+    let ev = unsafe { e.property };
+    if ev.window == wm.root { wm::updateStatus(wm) } else { wm }
 }
 
 /**

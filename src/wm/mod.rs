@@ -211,11 +211,23 @@ pub fn updateBars(mut wm: WM) -> WM {
     wm
 }
 
+fn getTextProp(dpy: &mut xlib::Display, w: xlib::Window, atom: xlib::Atom) -> Option<String> {
+    let mut name = xlib::XTextProperty { // Dummy value
+        value: (CString::new("").unwrap().into_bytes().as_mut_ptr()), encoding: 0, format: 8, nitems: 0
+    };
+    unsafe { xlib::XGetTextProperty(dpy, w, &mut name, atom) };
+    let text = unsafe { CString::from_vec_unchecked(Vec::from_raw_parts(name.value, name.nitems as usize, name.nitems as usize))}.into_string().unwrap();
+    if text == "" { None } else { Some(text) }
+}
+
 /**
  * Updates the status bar text
  */
 pub fn updateStatus(wm: WM) -> WM {
-    // if(...) TODO
+    let wm = WM {
+        stext: if let Some(text) = getTextProp(wm.drw.dpy, wm.root, xlib::XA_WM_NAME) { text } else { wm.stext },
+        ..wm
+    };
     WM {drw: workspace::drawBar(wm.drw, wm.bh, &wm.scheme, &wm.wss, wm.selwsindex, &wm.stext[..]), ..wm}
 }
 

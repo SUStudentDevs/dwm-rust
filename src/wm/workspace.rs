@@ -193,10 +193,9 @@ pub fn drawBar<'a>(drw: Drw<'a>, bh: u32, scheme: &Vec<ClrScheme>, wss: &Vec<Wor
     });
 
     // Show status text on right of the bar
-    let statusText = "dwm-rust";
-    let (drw, w) = drw::textw(&statusText, drw);
+    let (drw, w) = drw::textw(&stext, drw);
     let bw = drw.w as i32;
-    let (drw, _) = drw::text(drw::setScheme(drw, &scheme[SCHEMENORM]), bw - (w as i32), 1, w, bh, &statusText, false);
+    let (drw, _) = drw::text(drw::setScheme(drw, &scheme[SCHEMENORM]), bw - (w as i32), 1, w, bh, &stext, false);
 
     // Map the window
     let w = drw.w;

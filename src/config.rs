@@ -88,6 +88,7 @@ pub const buttons: [Button; 0] = [
 ];
 
 /// Commands to execute at start of the wm
-pub const startCmds: [&str; 1] = [
-    "feh --bg-scale /home/vertmo/Images/Wallpapers/botw.png"
+pub const startCmds: [&str; 2] = [
+    "feh --bg-scale /home/vertmo/Images/Wallpapers/botw.png",
+    "statusbar"
 ];
