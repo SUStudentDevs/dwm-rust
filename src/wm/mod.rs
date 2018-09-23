@@ -10,12 +10,12 @@ pub mod workspace;
 /// Client module
 pub mod client;
 
-use { CURNORMAL, SCHEMENORM, isUniqueGeom };
+use CURNORMAL;
 use wm::workspace::Workspace;
 use drw;
 use drw::{ Drw, Cur };
 use drw::clrscheme;
-use drw::clrscheme::{ Clr, ClrScheme };
+use drw::clrscheme::ClrScheme;
 use config;
 
 /**

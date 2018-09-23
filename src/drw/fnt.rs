@@ -5,8 +5,6 @@ use std::ffi::CString;
 
 use x11::{ xlib, xft, xrender };
 
-use drw::Drw;
-
 /**
  * Font extent (width and height)
  */

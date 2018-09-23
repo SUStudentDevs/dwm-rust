@@ -1,10 +1,6 @@
 extern crate x11;
 
-use std::collections::LinkedList;
-
 use x11::xlib;
-
-use chrono::Local;
 
 use client;
 use { Client, Pertag };

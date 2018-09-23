@@ -11,9 +11,6 @@ pub mod fnt;
 use self::clrscheme::ClrScheme;
 use self::fnt::Fnt;
 
-use SCHEMENORM;
-use SCHEMESEL;
-
 /**
  * Stores a cursor (wrapper around xlib::Cursor)
  */

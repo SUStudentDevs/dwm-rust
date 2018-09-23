@@ -1,12 +1,7 @@
 extern crate x11;
 
-use std::ptr;
-use std::mem::size_of;
-
 use x11::xlib;
 
-use { NETWMSTATE, NETWMWINDOWTYPE, NETWMFULLSCREEN, NETWMWINDOWTYPEDIALOG };
-use wm::WM;
 use wm::workspace::Workspace;
 use config;
 
