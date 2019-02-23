@@ -249,6 +249,7 @@ pub fn changeWs<'a>(arg: &Arg, wm: WM<'a>) -> WM<'a> {
         workspace::hideAllClients(&wm.wss[wm.selwsindex], wm.drw.dpy);
         let wm = wm::updateStatus(WM {
             selwsindex: (index-1) as usize,
+            oldwsindex: wm.selwsindex,
             ..wm
         });
         workspace::showAllClients(&wm.wss[wm.selwsindex], wm.drw.dpy);
@@ -279,6 +280,18 @@ pub fn changeWsRel<'a>(arg: &Arg, wm: WM<'a>) -> WM<'a> {
         let wm = changeWs(&Arg {u: index as u32 + 1}, wm);
         wm
     }
+}
+
+/**
+ * Change to the previously selected Workspace
+ *
+ * # Arguments
+ * * `arg` - Reference to an Arg
+ * * `wm` - Window Manager
+ */
+pub fn pivotWs<'a>(_arg: &Arg, wm: WM<'a>) -> WM<'a> {
+    let wm = changeWs(&Arg {u: wm.oldwsindex as u32 + 1}, wm);
+    wm
 }
 
 /**
@@ -333,6 +346,18 @@ pub fn moveClientToWsRel<'a>(arg: &Arg, wm: WM<'a>) -> WM<'a> {
         let wm = moveClientToWs(&Arg {u: index as u32 + 1}, wm);
         wm
     }
+}
+
+/**
+ * Move a client to the previously selected Workspace
+ *
+ * # Arguments
+ * * `arg` - Reference to an Arg
+ * * `wm` - Window Manager
+ */
+pub fn pivotClientToWs<'a>(_arg: &Arg, wm: WM<'a>) -> WM<'a> {
+    let wm = moveClientToWs(&Arg {u: wm.oldwsindex as u32 + 1}, wm);
+    wm
 }
 
 /**
