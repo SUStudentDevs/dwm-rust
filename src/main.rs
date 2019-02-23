@@ -201,7 +201,16 @@ pub fn executeStartCmds(wm: WM) -> WM {
  * Main program loop
  */
 pub fn run(mut wm: WM) -> WM {
-    let ev = &mut xlib::XEvent { any: xlib::XAnyEvent { type_: 0, serial: 0, send_event: 0, display: wm.drw.dpy, window: wm.root } }; // Dummy value
+    let ev = &mut xlib::XEvent {
+        any: xlib::XAnyEvent {
+            type_: 0,
+            serial: 0,
+            send_event: 0,
+            display: wm.drw.dpy,
+            window: wm.root
+        }
+    }; // Dummy value
+
     unsafe {
         xlib::XSync(wm.drw.dpy, 0);
         while wm.running && xlib::XNextEvent(wm.drw.dpy, ev) == 0 {
@@ -250,6 +259,29 @@ pub fn changeWs<'a>(arg: &Arg, wm: WM<'a>) -> WM<'a> {
 }
 
 /**
+ * Change to another Workspace relative to the current one
+ *
+ * # Arguments
+ * * `arg` - Reference to an Arg containing the number (i32) of positions
+ * *    to go forward (>0) or backwards (<0)
+ * * `wm` - Window Manager
+ */
+pub fn changeWsRel<'a>(arg: &Arg, wm: WM<'a>) -> WM<'a> {
+    let index = unsafe { arg.i } + wm.selwsindex as i32;
+
+    if index < 0 {
+        let wm = changeWs(&Arg {u: wm.wss.len() as u32}, wm);
+        wm
+    } else if index >= wm.wss.len() as i32 {
+        let wm = changeWs(&Arg {u: 1}, wm);
+        wm
+    } else {
+        let wm = changeWs(&Arg {u: index as u32 + 1}, wm);
+        wm
+    }
+}
+
+/**
  * Moves a Client to another Workspace
  *
  * # Arguments
@@ -276,6 +308,29 @@ pub fn moveClientToWs<'a>(arg: &Arg, wm: WM<'a>) -> WM<'a> {
         wm.wss.insert(index, ws);
         wm::updateStatus(wm)
     } else {
+        wm
+    }
+}
+
+/**
+ * Move a Client to another Workspace relative to the current one
+ *
+ * # Arguments
+ * * `arg` - Reference to an Arg containing the number (i32) of positions
+ * *    to move the client forward (>0) or backwards (<0)
+ * * `wm` - Window Manager
+ */
+pub fn moveClientToWsRel<'a>(arg: &Arg, wm: WM<'a>) -> WM<'a> {
+    let index = unsafe { arg.i } + wm.selwsindex as i32;
+
+    if index < 0 {
+        let wm = moveClientToWs(&Arg {u: wm.wss.len() as u32}, wm);
+        wm
+    } else if index >= wm.wss.len() as i32 {
+        let wm = moveClientToWs(&Arg {u: 1}, wm);
+        wm
+    } else {
+        let wm = moveClientToWs(&Arg {u: index as u32 + 1}, wm);
         wm
     }
 }
