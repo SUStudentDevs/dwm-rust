@@ -14,6 +14,7 @@ use config;
 pub fn tileArrange(mut ws: Workspace) -> Workspace {
     let n = ws.clients.len() as u32;
     let x = minX(&ws); let y = minY(&ws); let w = maxW(&ws); let h = maxH(&ws);
+
     if n == 1 { // If there is only one window
         Workspace {
             clients: vec! [client::setGeom(ws.clients.remove(0), x, y, w, h)],
@@ -30,18 +31,89 @@ pub fn tileArrange(mut ws: Workspace) -> Workspace {
     }
 }
 
-pub fn monocleArrange(ws: Workspace) -> Workspace {
-    // TODO
-    ws
+pub fn monocleArrange(mut ws: Workspace) -> Workspace {
+    let n = ws.clients.len() as u32;
+    let x = minX(&ws); let y = minY(&ws); let w = maxW(&ws); let h = maxH(&ws);
+
+    if n == 1 { // If there is only one window
+        Workspace {
+            clients: vec! [client::setGeom(ws.clients.remove(0), x, y, w, h)],
+            ..ws
+        }
+    } else if n > 1 {
+        Workspace {
+            clients: ws.clients.into_iter().enumerate().map(|(i, c)| { client::setGeom(c, x+(i as i32 * w as i32), y, w, h) }).collect(),
+            ..ws
+        }
+    } else {
+        ws
+    }
 }
 
 pub fn noArrange(ws: Workspace) -> Workspace {
     ws // Nothing
 }
 
-pub fn gridArrange(ws: Workspace) -> Workspace {
-    // TODO
-    ws
+pub fn gridArrange(mut ws: Workspace) -> Workspace {
+    let n = ws.clients.len() as u32;
+    let x = minX(&ws); let y = minY(&ws); let w = maxW(&ws); let h = maxH(&ws);
+    let mut rows = 0 as u32; let mut cols = 0 as u32;
+    // let mut gx = 0 as u32; let mut gy = 0; let mut gh = 0; let mut gw = 0;
+
+    if n == 1 { // If there is only one window
+        Workspace {
+            clients: vec! [client::setGeom(ws.clients.remove(0), x, y, w, h)],
+            ..ws
+        }
+    } else if n > 1 {
+        // Original code by dwm gapless grid mode
+        for x in 0..(n/2 + 1) {
+            if x*x >= n {
+                cols = x as u32;
+                println!("Found {}", x);
+                break;
+            }
+        }
+
+        if cols == 0 {
+            cols = 1;
+        }
+
+        if n == 5 {
+            cols = 2;
+        }
+
+        rows = n / cols;
+
+        println!("Clients: {}, rows: {}, cols: {}", n, rows, cols);
+
+        let gw = match cols {
+            0 => w,
+            _ => w / cols
+        };
+
+        Workspace {
+            clients: ws.clients.into_iter().enumerate().map(|(i, c)| {
+                if i as u32 / rows + 1 > cols - n % cols {
+                    rows = n / cols + 1;
+                }
+
+                let gh = match rows {
+                    0 => h,
+                    _ => h / rows
+                };
+                // let gx = match rows {
+                    // 0 => h,
+                    // _ => h / rows
+                // };
+
+                client::setGeom(c, x + ((i as i32 / rows as i32) * gw as i32), y + ((i as i32 % rows as i32) * gh as i32), gw, gh)
+            }).collect(),
+            ..ws
+        }
+    } else {
+        ws
+    }
 }
 
 /**
