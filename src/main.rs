@@ -286,7 +286,7 @@ pub fn changeWsRel<'a>(arg: &Arg, wm: WM<'a>) -> WM<'a> {
  * Change to the previously selected Workspace
  *
  * # Arguments
- * * `arg` - Reference to an Arg
+ * * `arg` - Reference to an Arg containing whatever
  * * `wm` - Window Manager
  */
 pub fn pivotWs<'a>(_arg: &Arg, wm: WM<'a>) -> WM<'a> {
@@ -352,10 +352,10 @@ pub fn moveClientToWsRel<'a>(arg: &Arg, wm: WM<'a>) -> WM<'a> {
  * Move a client to the previously selected Workspace
  *
  * # Arguments
- * * `arg` - Reference to an Arg
+ * * `arg` - Reference to an Arg containing whatever
  * * `wm` - Window Manager
  */
-pub fn pivotClientToWs<'a>(_arg: &Arg, wm: WM<'a>) -> WM<'a> {
+pub fn pivotClientToWs<'a>(_: &Arg, wm: WM<'a>) -> WM<'a> {
     let wm = moveClientToWs(&Arg {u: wm.oldwsindex as u32 + 1}, wm);
     wm
 }

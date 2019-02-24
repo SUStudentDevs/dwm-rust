@@ -26,7 +26,7 @@ impl<'a> PartialEq for Client<'a> {
 }
 
 /**
- * Create a new client from a window ant it's attributes
+ * Create a new client from a window and it's attributes
  */
 pub fn createClient<'a>(win: xlib::Window, wa: xlib::XWindowAttributes, wsindex: usize) -> Client<'a> {
     Client {
