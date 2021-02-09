@@ -8,6 +8,12 @@ We will try to use as many Rust "safe" features as possible, even if relying on 
 * cargo and cargo-make to compile and install the project. Cargo comes installed with your typical Rust installation. Use `cargo install cargo-make`
 * Xnest to test the wm in a nested Xserver environment
 
+### Debian-based ###
+
+```
+sudo apt-get install --yes libfreetype6 libxft-dev
+```
+
 ## Usage ##
 * `cargo build` to build the project (`cargo build --release` to build it in a more optimized release mode)
 * `cargo make xnest` to build the project and test it in a nested X environment
