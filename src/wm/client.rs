@@ -2,21 +2,31 @@ extern crate x11;
 
 use x11::xlib;
 
-use wm::workspace::Workspace;
 use config;
+use wm::workspace::Workspace;
 
 /**
  * Stores a Client (wrapper around the xlib::Window struct)
  */
 pub struct Client<'a> {
     pub name: &'a str,
-    pub mina: f32, pub maxa: f32,
-    pub x: i32, pub y: i32, pub w: u32, pub h: u32,
+    pub mina: f32,
+    pub maxa: f32,
+    pub x: i32,
+    pub y: i32,
+    pub w: u32,
+    pub h: u32,
     pub bw: u32,
     pub wsindex: usize,
     pub tags: u32,
-    pub isfixed: bool, pub isfloating: bool, pub isurgent: bool, pub neverfocus: bool, pub oldwm:bool, pub isfullscreen: bool, pub oldstate: bool,
-    pub win: xlib::Window
+    pub isfixed: bool,
+    pub isfloating: bool,
+    pub isurgent: bool,
+    pub neverfocus: bool,
+    pub oldwm: bool,
+    pub isfullscreen: bool,
+    pub oldstate: bool,
+    pub win: xlib::Window,
 }
 
 impl<'a> PartialEq for Client<'a> {
@@ -28,27 +38,44 @@ impl<'a> PartialEq for Client<'a> {
 /**
  * Create a new client from a window ant it's attributes
  */
-pub fn createClient<'a>(win: xlib::Window, wa: xlib::XWindowAttributes, wsindex: usize) -> Client<'a> {
+pub fn createClient<'a>(
+    win: xlib::Window,
+    wa: xlib::XWindowAttributes,
+    wsindex: usize,
+) -> Client<'a> {
     Client {
         name: "",
-        mina: 0.0, maxa: 0.0,
-        x: wa.x, y: wa.y, w: wa.width as u32, h: wa.height as u32,
+        mina: 0.0,
+        maxa: 0.0,
+        x: wa.x,
+        y: wa.y,
+        w: wa.width as u32,
+        h: wa.height as u32,
         bw: config::borderpx,
         wsindex,
         tags: 0,
-        isfixed: false, isfloating: false, isurgent: false, neverfocus: false, oldwm: false, isfullscreen: false, oldstate: false,
-        win
+        isfixed: false,
+        isfloating: false,
+        isurgent: false,
+        neverfocus: false,
+        oldwm: false,
+        isfullscreen: false,
+        oldstate: false,
+        win,
     }
 }
 
 /**
  * Finds the Client containing a Window
  */
-pub fn findFromWindow<'a>(window : xlib::Window, mons: &'a Vec<Workspace<'a>>) -> Option<&'a Client<'a>> {
+pub fn findFromWindow<'a>(
+    window: xlib::Window,
+    mons: &'a Vec<Workspace<'a>>,
+) -> Option<&'a Client<'a>> {
     for m in mons.iter() {
         for c in m.clients.iter() {
             if c.win == window {
-                return Some(c)
+                return Some(c);
             }
         }
     }
@@ -72,12 +99,12 @@ pub fn height(client: &Client) -> u32 {
 /**
  * Sets the window x, y, width and height (use total width and height, including bar width)
  */
-pub fn setGeom(c: Client, x:i32, y:i32, w: u32, h: u32) -> Client {
+pub fn setGeom(c: Client, x: i32, y: i32, w: u32, h: u32) -> Client {
     Client {
         x,
         y,
-        w: w - c.bw*2,
-        h: h - c.bw*2,
+        w: w - c.bw * 2,
+        h: h - c.bw * 2,
         ..c
     }
 }
@@ -87,11 +114,13 @@ pub fn setGeom(c: Client, x:i32, y:i32, w: u32, h: u32) -> Client {
  */
 pub fn configure<'a>(c: &'a Client<'a>, dpy: &mut xlib::Display) {
     let mut wc = xlib::XWindowChanges {
-        x: c.x, y: c.y,
-        width: c.w as i32, height: c.h as i32,
+        x: c.x,
+        y: c.y,
+        width: c.w as i32,
+        height: c.h as i32,
         border_width: c.bw as i32,
         sibling: 0,
-        stack_mode: 0
+        stack_mode: 0,
     };
     unsafe { xlib::XConfigureWindow(dpy, c.win, 0b11111, &mut wc) };
 }
@@ -281,4 +310,3 @@ pub fn updateTitle(c: Client) -> Client {
 // pub fn applyrules(&mut self) {
 //     // TODO
 // }
-

@@ -1,16 +1,16 @@
 extern crate x11;
 
-use std::process;
 use std::ffi::CString;
+use std::process;
 
-use x11::{ xlib, xft, xrender };
+use x11::{xft, xlib, xrender};
 
 /**
  * Font extent (width and height)
  */
 pub struct Extnts {
     pub w: u32,
-    pub h: u32
+    pub h: u32,
 }
 
 /**
@@ -21,7 +21,7 @@ pub struct Fnt {
     pub descent: i32,
     pub h: u32,
     pub xfont: *mut xft::XftFont,
-    pub pattern: *mut xft::FcPattern
+    pub pattern: *mut xft::FcPattern,
 }
 
 impl PartialEq for Fnt {
@@ -33,7 +33,12 @@ impl PartialEq for Fnt {
 /**
  * Add a new font
  */
-pub fn createFont(dpy: &mut xlib::Display, screen: i32, fontname: Option<&str>, fontpattern: Option<xft::FcPattern>) -> Option<Fnt>{
+pub fn createFont(
+    dpy: &mut xlib::Display,
+    screen: i32,
+    fontname: Option<&str>,
+    fontpattern: Option<xft::FcPattern>,
+) -> Option<Fnt> {
     if let Some(ftn) = fontname {
         let ftn_c = CString::new(ftn).unwrap();
         let xfont = unsafe { xft::XftFontOpenName(dpy, screen, ftn_c.as_ptr()) };
@@ -52,7 +57,7 @@ pub fn createFont(dpy: &mut xlib::Display, screen: i32, fontname: Option<&str>, 
                         descent: (*xfont).descent,
                         h: ((*xfont).ascent + (*xfont).descent) as u32,
                         xfont: xfont,
-                        pattern: pattern
+                        pattern: pattern,
                     })
                 }
             }
@@ -69,7 +74,7 @@ pub fn createFont(dpy: &mut xlib::Display, screen: i32, fontname: Option<&str>, 
                     descent: (*xfont).descent,
                     h: ((*xfont).ascent + (*xfont).descent) as u32,
                     xfont: xfont,
-                    pattern: &mut ftp
+                    pattern: &mut ftp,
                 })
             }
         }
@@ -87,8 +92,14 @@ pub fn freeFnt(fnt: Fnt, dpy: &mut xlib::Display) {
 }
 
 pub fn getexts(fnt: &Fnt, dpy: &mut xlib::Display, text: Vec<u8>, tex: &mut Extnts) {
-    let mut ext = xrender::XGlyphInfo { // Dummy value
-        height: 0, width: 0, x: 0, y: 0, xOff: 0, yOff: 0
+    let mut ext = xrender::XGlyphInfo {
+        // Dummy value
+        height: 0,
+        width: 0,
+        x: 0,
+        y: 0,
+        xOff: 0,
+        yOff: 0,
     };
     unsafe { xft::XftTextExtentsUtf8(dpy, fnt.xfont, text.as_ptr(), text.len() as i32, &mut ext) }
     tex.h = fnt.h;

@@ -3,26 +3,35 @@ extern crate x11;
 use x11::xlib;
 
 use client;
-use { Client, Pertag };
-use { SCHEMENORM, SCHEMESEL };
-use drw;
-use drw::Drw;
-use drw::clrscheme::ClrScheme;
 use config;
+use drw;
+use drw::clrscheme::ClrScheme;
+use drw::Drw;
+use {Client, Pertag};
+use {SCHEMENORM, SCHEMESEL};
 
 /// Arrange functions
 pub fn tileArrange(mut ws: Workspace) -> Workspace {
     let n = ws.clients.len() as u32;
-    let x = minX(&ws); let y = minY(&ws); let w = maxW(&ws); let h = maxH(&ws);
-    if n == 1 { // If there is only one window
+    let x = minX(&ws);
+    let y = minY(&ws);
+    let w = maxW(&ws);
+    let h = maxH(&ws);
+    if n == 1 {
+        // If there is only one window
         Workspace {
-            clients: vec! [client::setGeom(ws.clients.remove(0), x, y, w, h)],
+            clients: vec![client::setGeom(ws.clients.remove(0), x, y, w, h)],
             ..ws
         }
     } else if n > 1 {
-        let w = w/n;
+        let w = w / n;
         Workspace {
-            clients: ws.clients.into_iter().enumerate().map(|(i, c)| { client::setGeom(c, x+(i as i32 * w as i32), y, w, h) }).collect(),
+            clients: ws
+                .clients
+                .into_iter()
+                .enumerate()
+                .map(|(i, c)| client::setGeom(c, x + (i as i32 * w as i32), y, w, h))
+                .collect(),
             ..ws
         }
     } else {
@@ -49,7 +58,7 @@ pub fn gridArrange(ws: Workspace) -> Workspace {
  */
 pub struct Layout<'a> {
     pub symbol: &'a str,
-    pub arrange: fn (Workspace) -> Workspace
+    pub arrange: fn(Workspace) -> Workspace,
 }
 
 /**
@@ -60,8 +69,12 @@ pub struct Workspace<'a> {
     pub nmaster: u32,
     pub num: i32,
     pub tag: &'a str,
-    pub by: i32, pub bh: u32,  // Y position and height of bar
-    pub x: i32, pub y: i32, pub w: u32, pub h: u32, // Workspace
+    pub by: i32,
+    pub bh: u32, // Y position and height of bar
+    pub x: i32,
+    pub y: i32,
+    pub w: u32,
+    pub h: u32, // Workspace
     pub seltags: u32,
     pub sellt: u32,
     pub tagset: Vec<u32>,
@@ -70,7 +83,7 @@ pub struct Workspace<'a> {
     pub clients: Vec<Client<'a>>,
     pub barwin: xlib::Window,
     pub lt: Layout<'a>,
-    pub pertag: Pertag<'a>
+    pub pertag: Pertag<'a>,
 }
 
 impl<'a> PartialEq for Workspace<'a> {
@@ -88,8 +101,12 @@ pub fn createWorkspace<'a>(tag: &'a str) -> Workspace<'a> {
         nmaster: config::nmaster,
         num: 0,
         tag,
-        by: 0, bh: 0,
-        x: 0, y: 0, w: 0, h: 0,
+        by: 0,
+        bh: 0,
+        x: 0,
+        y: 0,
+        w: 0,
+        h: 0,
         seltags: 0,
         sellt: 0,
         tagset: Vec::new(),
@@ -97,7 +114,10 @@ pub fn createWorkspace<'a>(tag: &'a str) -> Workspace<'a> {
         topbar: config::topbar,
         clients: Vec::new(),
         barwin: 0,
-        lt: Layout { symbol: &config::layouts[0].symbol, arrange: config::layouts[0].arrange },
+        lt: Layout {
+            symbol: &config::layouts[0].symbol,
+            arrange: config::layouts[0].arrange,
+        },
         pertag: Pertag {
             curtag: 1,
             prevtag: 1,
@@ -106,10 +126,11 @@ pub fn createWorkspace<'a>(tag: &'a str) -> Workspace<'a> {
             selltds: Vec::new(),
             ltidxs: Vec::new(),
             showbars: Vec::new(),
-            prefzooms: Vec::new()
-        }
+            prefzooms: Vec::new(),
+        },
     };
-    mon.tagset.push(1); mon.tagset.push(1);
+    mon.tagset.push(1);
+    mon.tagset.push(1);
     mon
     // TODO tags
 }
@@ -128,16 +149,28 @@ pub fn createWorkspace<'a>(tag: &'a str) -> Workspace<'a> {
 //     selmon
 // }
 
-pub fn minX(ws: &Workspace) -> i32 { ws.x }
+pub fn minX(ws: &Workspace) -> i32 {
+    ws.x
+}
 
-pub fn maxW(ws: &Workspace) -> u32 { ws.w }
+pub fn maxW(ws: &Workspace) -> u32 {
+    ws.w
+}
 
-pub fn minY(ws : &Workspace) -> i32 {
-    if ws.showbar && ws.topbar { ws.bh as i32} else { ws.y }
+pub fn minY(ws: &Workspace) -> i32 {
+    if ws.showbar && ws.topbar {
+        ws.bh as i32
+    } else {
+        ws.y
+    }
 }
 
 pub fn maxH(ws: &Workspace) -> u32 {
-    let m = if ws.showbar { ws.h - ws.bh as u32 } else { ws.h };
+    let m = if ws.showbar {
+        ws.h - ws.bh as u32
+    } else {
+        ws.h
+    };
     m
 }
 
@@ -147,7 +180,11 @@ pub fn maxH(ws: &Workspace) -> u32 {
 pub fn updateBarPos(ws: Workspace, bh: u32) -> Workspace {
     if ws.showbar {
         return Workspace {
-            by: if ws.topbar { ws.y } else { (ws.h as i32) - (bh as i32)},
+            by: if ws.topbar {
+                ws.y
+            } else {
+                (ws.h as i32) - (bh as i32)
+            },
             bh,
             ..ws
         };
@@ -162,36 +199,70 @@ pub fn updateBarPos(ws: Workspace, bh: u32) -> Workspace {
 /**
  * Draws the statusbar
  */
-pub fn drawBar<'a>(drw: Drw<'a>, bh: u32, scheme: &Vec<ClrScheme>, wss: &Vec<Workspace>, selmonindex: usize, stext: &str) -> Drw<'a> {
+pub fn drawBar<'a>(
+    drw: Drw<'a>,
+    bh: u32,
+    scheme: &Vec<ClrScheme>,
+    wss: &Vec<Workspace>,
+    selmonindex: usize,
+    stext: &str,
+) -> Drw<'a> {
     let w = drw.w;
-    let drw = drw::rect(drw::setScheme(drw, &scheme[SCHEMENORM]), 0, 0, w, bh, true, true);
+    let drw = drw::rect(
+        drw::setScheme(drw, &scheme[SCHEMENORM]),
+        0,
+        0,
+        w,
+        bh,
+        true,
+        true,
+    );
     let dx: u32 = ((drw.fonts[0].ascent + drw.fonts[0].descent + 2) / 4) as u32;
     let occ = 0;
     let urg = 0;
-//     for mut c in self.clients.iter() {
-//         occ = occ|c.tags;
-//         if c.isurgent {
-//             urg = urg|c.tags
-//         }
-//     }
+    //     for mut c in self.clients.iter() {
+    //         occ = occ|c.tags;
+    //         if c.isurgent {
+    //             urg = urg|c.tags
+    //         }
+    //     }
 
     // Draw list of workspaces, with their tags
     let (drw, _) = wss.iter().enumerate().fold((drw, 0), |(drw, x), (i, ws)| {
         let (drw, w) = drw::textw(ws.tag, drw);
-        let (drw, _) = drw::text(if i == selmonindex { drw::setScheme(drw, &scheme[SCHEMESEL]) }
-                                 else { drw::setScheme(drw, &scheme[SCHEMENORM]) },
-                                 x, 1, w, bh, ws.tag, urg & (1 << i) != 0);
+        let (drw, _) = drw::text(
+            if i == selmonindex {
+                drw::setScheme(drw, &scheme[SCHEMESEL])
+            } else {
+                drw::setScheme(drw, &scheme[SCHEMENORM])
+            },
+            x,
+            1,
+            w,
+            bh,
+            ws.tag,
+            urg & (1 << i) != 0,
+        );
         let drw = if ws.clients.len() > 0 {
             drw::rect(drw, x + 1, 1, dx, dx, i == selmonindex, occ & (1 << i) != 0)
-        }
-        else { drw };
+        } else {
+            drw
+        };
         (drw, x + w as i32)
     });
 
     // Show status text on right of the bar
     let (drw, w) = drw::textw(&stext, drw);
     let bw = drw.w as i32;
-    let (drw, _) = drw::text(drw::setScheme(drw, &scheme[SCHEMENORM]), bw - (w as i32), 1, w, bh, &stext, false);
+    let (drw, _) = drw::text(
+        drw::setScheme(drw, &scheme[SCHEMENORM]),
+        bw - (w as i32),
+        1,
+        w,
+        bh,
+        &stext,
+        false,
+    );
 
     // Map the window
     let w = drw.w;
@@ -234,12 +305,16 @@ pub fn updateGeom<'a>(ws: Workspace<'a>, dpy: &mut xlib::Display) -> Workspace<'
  * Draws all the windows in this workspace
  */
 pub fn showAllClients(ws: &Workspace, dpy: &mut xlib::Display) {
-    for c in ws.clients.iter() { client::show(c, dpy); }
+    for c in ws.clients.iter() {
+        client::show(c, dpy);
+    }
 }
 
 /**
  * Draws all the windows in this workspace
  */
 pub fn hideAllClients(ws: &Workspace, dpy: &mut xlib::Display) {
-    for c in ws.clients.iter() { client::hide(c, dpy); }
+    for c in ws.clients.iter() {
+        client::hide(c, dpy);
+    }
 }

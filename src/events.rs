@@ -1,11 +1,10 @@
-
 use std::ptr;
 
 use x11::xlib;
 
 use wm;
-use wm::WM;
 use wm::client;
+use wm::WM;
 
 use config;
 
@@ -24,7 +23,7 @@ pub fn handleEvent<'a>(wm: WM<'a>, ev: &xlib::XEvent) -> WM<'a> {
             xlib::MapRequest => mapRequest(wm, ev),
             xlib::PropertyNotify => propertyNotify(wm, ev),
             // TODO : les autres handlers
-            _ => wm
+            _ => wm,
         }
     }
 }
@@ -38,11 +37,13 @@ pub fn configureRequest<'a>(wm: WM<'a>, e: &xlib::XEvent) -> WM<'a> {
         client::configure(c, wm.drw.dpy);
     } else {
         let mut wc = xlib::XWindowChanges {
-            x: ev.x, y: ev.y,
-            width: ev.width, height: ev.height,
+            x: ev.x,
+            y: ev.y,
+            width: ev.width,
+            height: ev.height,
             border_width: ev.border_width,
             sibling: ev.above,
-            stack_mode: ev.detail
+            stack_mode: ev.detail,
         };
         unsafe { xlib::XConfigureWindow(wm.drw.dpy, ev.window, ev.value_mask as u32, &mut wc) };
     }
@@ -53,7 +54,7 @@ pub fn configureRequest<'a>(wm: WM<'a>, e: &xlib::XEvent) -> WM<'a> {
 /**
  * Handles a ConfigureNotify event : after reconfiguration of a window
  */
-pub fn configureNotify<'a>(wm : WM<'a>, e: &xlib::XEvent) -> WM<'a> {
+pub fn configureNotify<'a>(wm: WM<'a>, e: &xlib::XEvent) -> WM<'a> {
     let _ev = unsafe { e.configure };
     // TODO
     wm::updateStatus(wm)
@@ -110,7 +111,8 @@ pub fn keyPress<'a>(wm: WM<'a>, e: &xlib::XEvent) -> WM<'a> {
     let keysym = unsafe { xlib::XKeycodeToKeysym(wm.drw.dpy, ev.keycode as u8, 0) };
     for i in 0..config::keys.len() {
         if keysym == config::keys[i].keysym
-        && cleanmask(ev.state) == cleanmask(config::keys[i].modif) {
+            && cleanmask(ev.state) == cleanmask(config::keys[i].modif)
+        {
             let func = config::keys[i].func;
             return func(&config::keys[i].arg, wm);
         }
@@ -132,10 +134,35 @@ pub fn buttonPress<'a>(wm: WM<'a>, e: &xlib::XEvent) -> WM<'a> {
  */
 pub fn mapRequest<'a>(wm: WM<'a>, e: &xlib::XEvent) -> WM<'a> {
     let ev = unsafe { e.map_request };
-    let mut wa = xlib::XWindowAttributes { // Dummy value
-        x: 0, y: 0, width: 0, height: 0, border_width: 0, depth: 0, visual: ptr::null_mut(), root: wm.root, class: 0, bit_gravity: 0, win_gravity: 0, backing_store: 0, backing_planes: 0, backing_pixel: 0, save_under: 0, colormap: 0, map_installed: 0, map_state: 0, all_event_masks: 0, your_event_mask: 0, do_not_propagate_mask: 0, override_redirect: 0, screen: ptr::null_mut()
+    let mut wa = xlib::XWindowAttributes {
+        // Dummy value
+        x: 0,
+        y: 0,
+        width: 0,
+        height: 0,
+        border_width: 0,
+        depth: 0,
+        visual: ptr::null_mut(),
+        root: wm.root,
+        class: 0,
+        bit_gravity: 0,
+        win_gravity: 0,
+        backing_store: 0,
+        backing_planes: 0,
+        backing_pixel: 0,
+        save_under: 0,
+        colormap: 0,
+        map_installed: 0,
+        map_state: 0,
+        all_event_masks: 0,
+        your_event_mask: 0,
+        do_not_propagate_mask: 0,
+        override_redirect: 0,
+        screen: ptr::null_mut(),
     };
-    if unsafe { xlib::XGetWindowAttributes(wm.drw.dpy, ev.window, &mut wa) } == 0 || wa.override_redirect != 0 {
+    if unsafe { xlib::XGetWindowAttributes(wm.drw.dpy, ev.window, &mut wa) } == 0
+        || wa.override_redirect != 0
+    {
         wm
     } else if client::findFromWindow(ev.window, &wm.wss) == None {
         return wm::manage(wm, ev.window, wa);
@@ -149,5 +176,9 @@ pub fn mapRequest<'a>(wm: WM<'a>, e: &xlib::XEvent) -> WM<'a> {
  */
 pub fn propertyNotify<'a>(wm: WM<'a>, e: &xlib::XEvent) -> WM<'a> {
     let ev = unsafe { e.property };
-    if ev.window == wm.root { wm::updateStatus(wm) } else { wm }
+    if ev.window == wm.root {
+        wm::updateStatus(wm)
+    } else {
+        wm
+    }
 }

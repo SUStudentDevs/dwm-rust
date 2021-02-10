@@ -6,38 +6,53 @@ extern crate x11;
 
 use std::env;
 use std::process;
-use std::ptr;
 use std::process::Command;
+use std::ptr;
 
-use x11::{ xlib, xinerama };
+use x11::{xinerama, xlib};
 
+/// Configuration module
+pub mod config;
+/// Drawable module
+pub mod drw;
 /// Events handling
 pub mod events;
 /// Window Manager module
 pub mod wm;
-/// Drawable module
-pub mod drw;
-/// Configuration module
-pub mod config;
 
 use events::handleEvent;
 
-use wm::WM;
-use wm::workspace;
-use wm::workspace::Layout;
 use wm::client;
 use wm::client::Client;
+use wm::workspace;
+use wm::workspace::Layout;
+use wm::WM;
 
 const VERSION: &str = "0.0.1";
 
 // WM Atom indexes
-const WMPROTOCOLS: usize = 0; const WMDELETE: usize = 1; const WMSTATE: usize  = 2; const WMTAKEFOCUS: usize = 3; const WMLAST: usize = 4;
+const WMPROTOCOLS: usize = 0;
+const WMDELETE: usize = 1;
+const WMSTATE: usize = 2;
+const WMTAKEFOCUS: usize = 3;
+const WMLAST: usize = 4;
 // Net Atom indexes
-const NETACTIVEWINDOW: usize = 0; const NETSUPPORTED: usize = 1; const NETWMNAME: usize = 2; const NETWMSTATE: usize = 3; const NETWMFULLSCREEN: usize = 4; const NETWMWINDOWTYPE: usize = 5; const NETWMWINDOWTYPEDIALOG: usize = 6; const NETCLIENTLIST: usize = 7; const NETLAST: usize = 8;
+const NETACTIVEWINDOW: usize = 0;
+const NETSUPPORTED: usize = 1;
+const NETWMNAME: usize = 2;
+const NETWMSTATE: usize = 3;
+const NETWMFULLSCREEN: usize = 4;
+const NETWMWINDOWTYPE: usize = 5;
+const NETWMWINDOWTYPEDIALOG: usize = 6;
+const NETCLIENTLIST: usize = 7;
+const NETLAST: usize = 8;
 // Cursor indexes
-pub const CURNORMAL: usize = 0; pub const CURRESIZE: usize = 1; pub const CURMOVE: usize = 2;
+pub const CURNORMAL: usize = 0;
+pub const CURRESIZE: usize = 1;
+pub const CURMOVE: usize = 2;
 // Color scheme indexes
-pub const SCHEMENORM: usize = 0; pub const SCHEMESEL: usize = 1;
+pub const SCHEMENORM: usize = 0;
+pub const SCHEMESEL: usize = 1;
 
 /**
  * Stores an argument to pass to functions on keypress and click events
@@ -46,7 +61,7 @@ pub union Arg<'a> {
     i: i32,
     u: u32,
     f: f32,
-    s: &'a str
+    s: &'a str,
 }
 
 /**
@@ -55,15 +70,21 @@ pub union Arg<'a> {
 pub struct Key<'a> {
     modif: u32,
     keysym: xlib::KeySym,
-    func: for<'b> fn (&Arg, WM<'b>) -> WM<'b>,
-    arg: Arg<'a>
+    func: for<'b> fn(&Arg, WM<'b>) -> WM<'b>,
+    arg: Arg<'a>,
 }
 
 /**
  * Different types of click events
  */
 pub enum Click {
-    ClkTagBar, ClkLtSymbol, ClkStatusText, ClkWinTitle, ClkClientWin, ClkRootWin, ClkLast
+    ClkTagBar,
+    ClkLtSymbol,
+    ClkStatusText,
+    ClkWinTitle,
+    ClkClientWin,
+    ClkRootWin,
+    ClkLast,
 }
 
 /**
@@ -73,35 +94,38 @@ pub struct Button<'a> {
     click: Click,
     mask: u32,
     button: u32,
-    func: for<'b> fn (&Arg, WM<'b>) -> WM<'b>,
-    arg: Arg<'a>
+    func: for<'b> fn(&Arg, WM<'b>) -> WM<'b>,
+    arg: Arg<'a>,
 }
 
 /**
  * Stores a tag
  */
 pub struct Pertag<'a> {
-    curtag: u32, prevtag: u32,  // Current and previous tag
-    nmasters: Vec<i32>, // number windows in master area
-    mfacts: Vec<f32>,   // mfacts per tag
-    selltds: Vec<u32>,  // Selected layouts
+    curtag: u32,
+    prevtag: u32,                     // Current and previous tag
+    nmasters: Vec<i32>,               // number windows in master area
+    mfacts: Vec<f32>,                 // mfacts per tag
+    selltds: Vec<u32>,                // Selected layouts
     ltidxs: Vec<Vec<&'a Layout<'a>>>, // Matrix of tags and layouts
-    showbars: Vec<bool>,    // Display bar for each tag
-    prefzooms: Vec<&'a Client<'a>> // Zoom information
+    showbars: Vec<bool>,              // Display bar for each tag
+    prefzooms: Vec<&'a Client<'a>>,   // Zoom information
 }
 
 fn main() {
     let args: Vec<String> = env::args().collect();
-    if args.len()==2 && args[1]==String::from("-v") {
+    if args.len() == 2 && args[1] == String::from("-v") {
         println!("dwm-rust-{}", ::VERSION);
         process::exit(0);
-    } if args.len()>1 {
+    }
+    if args.len() > 1 {
         println!("usage: dwm-rust [-v]");
         process::exit(1);
     }
     if unsafe { xlib::XSupportsLocale() } == 0 {
         println!("Warning : no locale support");
-    } if let Some(dpy) = Some( unsafe { &mut(*xlib::XOpenDisplay(ptr::null())) }) {
+    }
+    if let Some(dpy) = Some(unsafe { &mut (*xlib::XOpenDisplay(ptr::null())) }) {
         // This is where we'll work
         checkOtherWm(dpy);
         let wm = cleanup(run(setup(dpy)));
@@ -121,12 +145,17 @@ extern "C" fn xerrorstart(_dpy: *mut xlib::Display, _ee: *mut xlib::XErrorEvent)
 /// Handles errors. TODO : completer les cas sans erreur
 unsafe extern "C" fn xerror(_dpy: *mut xlib::Display, ee: *mut xlib::XErrorEvent) -> i32 {
     if (*ee).error_code == xlib::BadWindow
-    || (*ee).error_code == xlib::BadDrawable
-    || (*ee).error_code == xlib::BadMatch
-    || (*ee).error_code == xlib::BadAccess {
+        || (*ee).error_code == xlib::BadDrawable
+        || (*ee).error_code == xlib::BadMatch
+        || (*ee).error_code == xlib::BadAccess
+    {
         0
     } else {
-        eprintln!("dwm-rust: fatal error: request code={}, error code={}", (*ee).request_code, (*ee).error_code);
+        eprintln!(
+            "dwm-rust: fatal error: request code={}, error code={}",
+            (*ee).request_code,
+            (*ee).error_code
+        );
         process::exit(1);
     }
 }
@@ -137,8 +166,14 @@ unsafe extern "C" fn xerror(_dpy: *mut xlib::Display, ee: *mut xlib::XErrorEvent
 pub fn checkOtherWm(dpy: *mut xlib::Display) {
     unsafe {
         xlib::XSetErrorHandler(Some(xerrorstart));
-        xlib::XSelectInput(dpy, xlib::XDefaultRootWindow(dpy), xlib::SubstructureRedirectMask);
-        xlib::XSync(dpy, 0); xlib::XSetErrorHandler(Some(xerror)); xlib::XSync(dpy, 0);
+        xlib::XSelectInput(
+            dpy,
+            xlib::XDefaultRootWindow(dpy),
+            xlib::SubstructureRedirectMask,
+        );
+        xlib::XSync(dpy, 0);
+        xlib::XSetErrorHandler(Some(xerror));
+        xlib::XSync(dpy, 0);
     }
 }
 
@@ -153,55 +188,97 @@ pub fn setup(dpy: &mut xlib::Display) -> WM {
     let drw = drw::createDrw(dpy, screen, root, sw, sh);
 
     let drw = drw::loadFonts(drw, config::fonts.to_vec());
-    if drw.fonts.len()<1 {
+    if drw.fonts.len() < 1 {
         eprintln!("no fonts could be loaded.\n");
         process::exit(1);
     }
 
-    let wm = wm::updateStatus(wm::updateBars(wm::createWorkspaces(wm::initWm(drw, screen, root, sw, sh))));
+    let wm = wm::updateStatus(wm::updateBars(wm::createWorkspaces(wm::initWm(
+        drw, screen, root, sw, sh,
+    ))));
     unsafe {
-        xlib::XChangeProperty(wm.drw.dpy, wm.root, wm.netatom[NETSUPPORTED], xlib::XA_ATOM, 32, xlib::PropModeReplace, &(wm.netatom[0] as u8), NETLAST as i32);
+        xlib::XChangeProperty(
+            wm.drw.dpy,
+            wm.root,
+            wm.netatom[NETSUPPORTED],
+            xlib::XA_ATOM,
+            32,
+            xlib::PropModeReplace,
+            &(wm.netatom[0] as u8),
+            NETLAST as i32,
+        );
         xlib::XDeleteProperty(wm.drw.dpy, wm.root, wm.netatom[NETCLIENTLIST]);
-        xlib::XChangeWindowAttributes(wm.drw.dpy, wm.root, xlib::CWEventMask|xlib::CWCursor, &mut xlib::XSetWindowAttributes {
-            background_pixmap: 0,
-            background_pixel: 0,
-            border_pixmap: xlib::CopyFromParent as u64,
-            border_pixel: 0,
-            bit_gravity: xlib::ForgetGravity,
-            win_gravity: xlib::NorthWestGravity,
-            backing_store: xlib::NotUseful,
-            backing_planes: 1,
-            backing_pixel: 0,
-            save_under: 0,
-            event_mask: xlib::SubstructureRedirectMask|xlib::SubstructureNotifyMask|xlib::ButtonPressMask|xlib::PointerMotionMask|xlib::EnterWindowMask|xlib::LeaveWindowMask|xlib::StructureNotifyMask|xlib::PropertyChangeMask,
-        do_not_propagate_mask: 0,
-            override_redirect: 0,
-            colormap: xlib::CopyFromParent as u64,
-            cursor: wm.cursor[CURNORMAL].cursor
-        });
+        xlib::XChangeWindowAttributes(
+            wm.drw.dpy,
+            wm.root,
+            xlib::CWEventMask | xlib::CWCursor,
+            &mut xlib::XSetWindowAttributes {
+                background_pixmap: 0,
+                background_pixel: 0,
+                border_pixmap: xlib::CopyFromParent as u64,
+                border_pixel: 0,
+                bit_gravity: xlib::ForgetGravity,
+                win_gravity: xlib::NorthWestGravity,
+                backing_store: xlib::NotUseful,
+                backing_planes: 1,
+                backing_pixel: 0,
+                save_under: 0,
+                event_mask: xlib::SubstructureRedirectMask
+                    | xlib::SubstructureNotifyMask
+                    | xlib::ButtonPressMask
+                    | xlib::PointerMotionMask
+                    | xlib::EnterWindowMask
+                    | xlib::LeaveWindowMask
+                    | xlib::StructureNotifyMask
+                    | xlib::PropertyChangeMask,
+                do_not_propagate_mask: 0,
+                override_redirect: 0,
+                colormap: xlib::CopyFromParent as u64,
+                cursor: wm.cursor[CURNORMAL].cursor,
+            },
+        );
     }
     // focus(None); TODO
     executeStartCmds(wm::setRootBackground(wm::grabKeys(wm)))
 }
 
-pub fn isUniqueGeom(unique: &Vec<xinerama::XineramaScreenInfo>, n: usize, info: &xinerama::XineramaScreenInfo) -> bool {
+pub fn isUniqueGeom(
+    unique: &Vec<xinerama::XineramaScreenInfo>,
+    n: usize,
+    info: &xinerama::XineramaScreenInfo,
+) -> bool {
     for i in n..0 {
-        if unique[i].x_org == info.x_org && unique[i].y_org == info.y_org && unique[i].width == info.width && unique[i].height == info.height {
-            return false
+        if unique[i].x_org == info.x_org
+            && unique[i].y_org == info.y_org
+            && unique[i].width == info.width
+            && unique[i].height == info.height
+        {
+            return false;
         }
     }
     true
 }
 
 pub fn executeStartCmds(wm: WM) -> WM {
-    config::startCmds.into_iter().map(|s| {Arg {s}}).fold(wm, |wm, a| { spawn(&a, wm) })
+    config::startCmds
+        .iter()
+        .map(|s| Arg { s })
+        .fold(wm, |wm, a| spawn(&a, wm))
 }
 
 /**
  * Main program loop
  */
 pub fn run(mut wm: WM) -> WM {
-    let ev = &mut xlib::XEvent { any: xlib::XAnyEvent { type_: 0, serial: 0, send_event: 0, display: wm.drw.dpy, window: wm.root } }; // Dummy value
+    let ev = &mut xlib::XEvent {
+        any: xlib::XAnyEvent {
+            type_: 0,
+            serial: 0,
+            send_event: 0,
+            display: wm.drw.dpy,
+            window: wm.root,
+        },
+    }; // Dummy value
     unsafe {
         xlib::XSync(wm.drw.dpy, 0);
         while wm.running && xlib::XNextEvent(wm.drw.dpy, ev) == 0 {
@@ -218,12 +295,14 @@ pub fn run(mut wm: WM) -> WM {
  * * `wm` - Window Manager
  */
 pub fn spawn<'a>(arg: &Arg, wm: WM<'a>) -> WM<'a> {
-    let v : Vec<&str> = unsafe { arg.s.split(' ').collect() };
+    let v: Vec<&str> = unsafe { arg.s.split(' ').collect() };
     let mut command = Command::new(v[0]);
     for i in 1..v.len() {
         command.arg(v[i]);
     }
-    command.spawn().expect(&["Command", unsafe { arg.s }, "has failed..."].join(" ")[..]);
+    command
+        .spawn()
+        .expect(&["Command", unsafe { arg.s }, "has failed..."].join(" ")[..]);
     wm
 }
 
@@ -236,10 +315,10 @@ pub fn spawn<'a>(arg: &Arg, wm: WM<'a>) -> WM<'a> {
  */
 pub fn changeWs<'a>(arg: &Arg, wm: WM<'a>) -> WM<'a> {
     let index = unsafe { arg.u };
-    if index > 0 && index <= wm.wss.len() as u32 && (index-1) != wm.selwsindex as u32 {
+    if index > 0 && index <= wm.wss.len() as u32 && (index - 1) != wm.selwsindex as u32 {
         workspace::hideAllClients(&wm.wss[wm.selwsindex], wm.drw.dpy);
         let wm = wm::updateStatus(WM {
-            selwsindex: (index-1) as usize,
+            selwsindex: (index - 1) as usize,
             ..wm
         });
         workspace::showAllClients(&wm.wss[wm.selwsindex], wm.drw.dpy);
@@ -301,7 +380,6 @@ pub fn closeClient<'a>(_: &Arg, wm: WM<'a>) -> WM<'a> {
     }
     wm
 }
-
 
 /**
  * Quits the WM

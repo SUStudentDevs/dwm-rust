@@ -1,9 +1,9 @@
-extern crate x11;
 extern crate libc;
+extern crate x11;
 
 use std::ptr;
 
-use x11::{ xlib, xft };
+use x11::{xft, xlib};
 
 pub mod clrscheme;
 pub mod fnt;
@@ -15,7 +15,7 @@ use self::fnt::Fnt;
  * Stores a cursor (wrapper around xlib::Cursor)
  */
 pub struct Cur {
-    pub cursor: xlib::Cursor
+    pub cursor: xlib::Cursor,
 }
 
 /**
@@ -23,7 +23,7 @@ pub struct Cur {
  */
 pub fn createCur(drw: &mut Drw, shape: u32) -> Cur {
     Cur {
-        cursor: unsafe { xlib::XCreateFontCursor(drw.dpy, shape)}
+        cursor: unsafe { xlib::XCreateFontCursor(drw.dpy, shape) },
     }
 }
 
@@ -39,13 +39,13 @@ pub struct Drw<'a> {
     drawable: xlib::Drawable,
     gc: xlib::GC,
     scheme: *const ClrScheme,
-    pub fonts: Vec<Fnt>
+    pub fonts: Vec<Fnt>,
 }
 
 /**
  * Creates a drawable area for a display
  */
-pub fn createDrw(dpy: &mut xlib::Display, screen: i32, root: xlib::Window, w: u32, h:u32) -> Drw {
+pub fn createDrw(dpy: &mut xlib::Display, screen: i32, root: xlib::Window, w: u32, h: u32) -> Drw {
     let mut drw = Drw {
         dpy,
         screen,
@@ -55,9 +55,17 @@ pub fn createDrw(dpy: &mut xlib::Display, screen: i32, root: xlib::Window, w: u3
         drawable: 0,
         gc: ptr::null_mut(),
         fonts: Vec::new(),
-        scheme: ptr::null_mut()
+        scheme: ptr::null_mut(),
     };
-    drw.drawable = unsafe { xlib::XCreatePixmap(drw.dpy, root, w, h, xlib::XDefaultDepth(drw.dpy, screen) as u32) };
+    drw.drawable = unsafe {
+        xlib::XCreatePixmap(
+            drw.dpy,
+            root,
+            w,
+            h,
+            xlib::XDefaultDepth(drw.dpy, screen) as u32,
+        )
+    };
     drw.gc = unsafe { xlib::XCreateGC(drw.dpy, root, 0, ptr::null_mut()) };
     drw
 }
@@ -118,12 +126,20 @@ pub fn rect(drw: Drw, x: i32, y: i32, w: u32, h: u32, filled: bool, invert: bool
 /**
  * Draws text, and returns text width
  */
-pub fn text<'a>(drw: Drw<'a>, mut x: i32, y: i32, mut w:u32, h:u32, text: &str, invert: bool) -> (Drw<'a>, i32) {
+pub fn text<'a>(
+    drw: Drw<'a>,
+    mut x: i32,
+    y: i32,
+    mut w: u32,
+    h: u32,
+    text: &str,
+    invert: bool,
+) -> (Drw<'a>, i32) {
     let s = drw.scheme;
     let mut d = ptr::null_mut();
     if !s.is_null() {
         if drw.fonts.len() > 0 {
-            let render = x!= 0 || y != 0 || w != 0 || h != 0;
+            let render = x != 0 || y != 0 || w != 0 || h != 0;
             if !render {
                 w = !w;
             } else {
@@ -133,13 +149,22 @@ pub fn text<'a>(drw: Drw<'a>, mut x: i32, y: i32, mut w:u32, h:u32, text: &str, 
                     unsafe { xlib::XSetForeground(drw.dpy, drw.gc, (*s).bg.pix) };
                 }
                 unsafe { xlib::XFillRectangle(drw.dpy, drw.drawable, drw.gc, x, y, w, h) };
-                d = unsafe { xft:: XftDrawCreate(drw.dpy, drw.drawable, xlib::XDefaultVisual(drw.dpy, drw.screen), xlib::XDefaultColormap(drw.dpy, drw.screen)) };
+                d = unsafe {
+                    xft::XftDrawCreate(
+                        drw.dpy,
+                        drw.drawable,
+                        xlib::XDefaultVisual(drw.dpy, drw.screen),
+                        xlib::XDefaultColormap(drw.dpy, drw.screen),
+                    )
+                };
             }
 
             let curfont = &drw.fonts[0];
             let mut charexists = false;
-            let mut tex = fnt::Extnts { // Dummy value
-                w: 0, h: 0
+            let mut tex = fnt::Extnts {
+                // Dummy value
+                w: 0,
+                h: 0,
             };
             loop {
                 let utf8str = text.as_bytes();
@@ -150,15 +175,37 @@ pub fn text<'a>(drw: Drw<'a>, mut x: i32, y: i32, mut w:u32, h:u32, text: &str, 
                     let ty = y + (h / 2) as i32 - (th / 2) + curfont.ascent;
                     let tx = x + (h / 2) as i32;
                     if invert {
-                        unsafe { xft::XftDrawStringUtf8(d, &(*s).bg.rgb, curfont.xfont, tx, ty, utf8str.as_ptr(), utf8str.len() as i32) };
+                        unsafe {
+                            xft::XftDrawStringUtf8(
+                                d,
+                                &(*s).bg.rgb,
+                                curfont.xfont,
+                                tx,
+                                ty,
+                                utf8str.as_ptr(),
+                                utf8str.len() as i32,
+                            )
+                        };
                     } else {
-                        unsafe { xft::XftDrawStringUtf8(d, &(*s).fg.rgb, curfont.xfont, tx, ty, utf8str.as_ptr(), utf8str.len() as i32) };
+                        unsafe {
+                            xft::XftDrawStringUtf8(
+                                d,
+                                &(*s).fg.rgb,
+                                curfont.xfont,
+                                tx,
+                                ty,
+                                utf8str.as_ptr(),
+                                utf8str.len() as i32,
+                            )
+                        };
                     }
                 }
                 x += tex.w as i32;
                 w -= tex.w;
 
-                if !charexists /* || nextfont != curfont*/ {
+                if !charexists
+                /* || nextfont != curfont*/
+                {
                     break;
                 } else {
                     charexists = false;

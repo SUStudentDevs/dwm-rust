@@ -2,21 +2,21 @@ extern crate x11;
 
 use std::ffi::CString;
 
-use x11::xlib;
 use x11::keysym;
+use x11::xlib;
 
-/// Workspace module
-pub mod workspace;
 /// Client module
 pub mod client;
+/// Workspace module
+pub mod workspace;
 
-use CURNORMAL;
-use wm::workspace::Workspace;
+use config;
 use drw;
-use drw::{ Drw, Cur };
 use drw::clrscheme;
 use drw::clrscheme::ClrScheme;
-use config;
+use drw::{Cur, Drw};
+use wm::workspace::Workspace;
+use CURNORMAL;
 
 /**
  * Stores the state of the Window Manager
@@ -32,7 +32,8 @@ pub struct WM<'a> {
     pub scheme: Vec<ClrScheme>,
     pub wss: Vec<Workspace<'a>>,
     pub selwsindex: usize,
-    pub sw: u32, pub sh: u32,
+    pub sw: u32,
+    pub sh: u32,
     pub bh: u32,
     pub stext: String,
     pub numlockmask: u32,
@@ -53,39 +54,90 @@ pub fn initWm(drw: Drw, screen: i32, root: u64, sw: u32, sh: u32) -> WM {
         scheme: Vec::new(),
         wss: Vec::new(),
         selwsindex: 0,
-        sw, sh,
+        sw,
+        sh,
         bh: 0,
         stext: String::from("dwm-rust"),
-        numlockmask: 0
+        numlockmask: 0,
     };
     wm.bh = wm.drw.fonts[0].h + 2;
     unsafe {
         // Init atoms
-        wm.wmatom.push(xlib::XInternAtom(wm.drw.dpy, CString::new("WM_PROTOCOLS").unwrap().as_ptr(), 0));
-        wm.wmatom.push(xlib::XInternAtom(wm.drw.dpy, CString::new("WM_DELETE_WINDOW").unwrap().as_ptr(), 0));
-        wm.wmatom.push(xlib::XInternAtom(wm.drw.dpy, CString::new("WM_STATE").unwrap().as_ptr(), 0));
-        wm.wmatom.push(xlib::XInternAtom(wm.drw.dpy, CString::new("WM_TAKE_FOCUS").unwrap().as_ptr(), 0));
-        wm.netatom.push(xlib::XInternAtom(wm.drw.dpy,CString::new("_NET_ACTIVE_WINDOW").unwrap().as_ptr(), 0));
-        wm.netatom.push(xlib::XInternAtom(wm.drw.dpy, CString::new("_NET_SUPPORTED").unwrap().as_ptr(), 0));
-        wm.netatom.push(xlib::XInternAtom(wm.drw.dpy, CString::new("_NET_WM_NAME").unwrap().as_ptr(), 0));
-        wm.netatom.push(xlib::XInternAtom(wm.drw.dpy, CString::new("_NET_WM_STATE").unwrap().as_ptr(), 0));
-        wm.netatom.push(xlib::XInternAtom(wm.drw.dpy, CString::new("_NET_WM_STATE_FULLSCREEN").unwrap().as_ptr(), 0));
-        wm.netatom.push(xlib::XInternAtom(wm.drw.dpy, CString::new("_NET_WM_WINDOWN_TYPE").unwrap().as_ptr(), 0));
-        wm.netatom.push(xlib::XInternAtom(wm.drw.dpy, CString::new("_NET_WM_WINDOW_TYPE_DIALOG").unwrap().as_ptr(), 0));
-        wm.netatom.push(xlib::XInternAtom(wm.drw.dpy, CString::new("_NET_CLIENT_LIST").unwrap().as_ptr(), 0));
+        wm.wmatom.push(xlib::XInternAtom(
+            wm.drw.dpy,
+            CString::new("WM_PROTOCOLS").unwrap().as_ptr(),
+            0,
+        ));
+        wm.wmatom.push(xlib::XInternAtom(
+            wm.drw.dpy,
+            CString::new("WM_DELETE_WINDOW").unwrap().as_ptr(),
+            0,
+        ));
+        wm.wmatom.push(xlib::XInternAtom(
+            wm.drw.dpy,
+            CString::new("WM_STATE").unwrap().as_ptr(),
+            0,
+        ));
+        wm.wmatom.push(xlib::XInternAtom(
+            wm.drw.dpy,
+            CString::new("WM_TAKE_FOCUS").unwrap().as_ptr(),
+            0,
+        ));
+        wm.netatom.push(xlib::XInternAtom(
+            wm.drw.dpy,
+            CString::new("_NET_ACTIVE_WINDOW").unwrap().as_ptr(),
+            0,
+        ));
+        wm.netatom.push(xlib::XInternAtom(
+            wm.drw.dpy,
+            CString::new("_NET_SUPPORTED").unwrap().as_ptr(),
+            0,
+        ));
+        wm.netatom.push(xlib::XInternAtom(
+            wm.drw.dpy,
+            CString::new("_NET_WM_NAME").unwrap().as_ptr(),
+            0,
+        ));
+        wm.netatom.push(xlib::XInternAtom(
+            wm.drw.dpy,
+            CString::new("_NET_WM_STATE").unwrap().as_ptr(),
+            0,
+        ));
+        wm.netatom.push(xlib::XInternAtom(
+            wm.drw.dpy,
+            CString::new("_NET_WM_STATE_FULLSCREEN").unwrap().as_ptr(),
+            0,
+        ));
+        wm.netatom.push(xlib::XInternAtom(
+            wm.drw.dpy,
+            CString::new("_NET_WM_WINDOWN_TYPE").unwrap().as_ptr(),
+            0,
+        ));
+        wm.netatom.push(xlib::XInternAtom(
+            wm.drw.dpy,
+            CString::new("_NET_WM_WINDOW_TYPE_DIALOG").unwrap().as_ptr(),
+            0,
+        ));
+        wm.netatom.push(xlib::XInternAtom(
+            wm.drw.dpy,
+            CString::new("_NET_CLIENT_LIST").unwrap().as_ptr(),
+            0,
+        ));
         // Init cursors
         wm.cursor.push(drw::createCur(&mut (wm.drw), 68)); // Normal
         wm.cursor.push(drw::createCur(&mut (wm.drw), 120)); // Resize
         wm.cursor.push(drw::createCur(&mut (wm.drw), 52)); // Move
-        // Init color schemes
+                                                           // Init color schemes
         wm.scheme.push(clrscheme::createClrScheme(
             clrscheme::createClr(wm.drw.dpy, wm.drw.screen, config::normfgcolor),
             clrscheme::createClr(wm.drw.dpy, wm.drw.screen, config::normbgcolor),
-            clrscheme::createClr(wm.drw.dpy, wm.drw.screen, config::normbordercolor))); // Normal
+            clrscheme::createClr(wm.drw.dpy, wm.drw.screen, config::normbordercolor),
+        )); // Normal
         wm.scheme.push(clrscheme::createClrScheme(
             clrscheme::createClr(wm.drw.dpy, wm.drw.screen, config::selfgcolor),
             clrscheme::createClr(wm.drw.dpy, wm.drw.screen, config::selbgcolor),
-            clrscheme::createClr(wm.drw.dpy, wm.drw.screen, config::selbordercolor))); // Selected
+            clrscheme::createClr(wm.drw.dpy, wm.drw.screen, config::selbordercolor),
+        )); // Selected
     }
     wm
 }
@@ -104,13 +156,20 @@ pub fn setRootBackground(wm: WM) -> WM {
  */
 pub fn createWorkspaces(wm: WM) -> WM {
     WM {
-        wss:config::tags.iter().map(|t| {
-            let ws = workspace::createWorkspace(t);
-            workspace::updateBarPos(workspace::Workspace {
-                w: wm.sw, h: wm.sh,
-                ..ws
-            }, wm.bh)
-        }).collect(),
+        wss: config::tags
+            .iter()
+            .map(|t| {
+                let ws = workspace::createWorkspace(t);
+                workspace::updateBarPos(
+                    workspace::Workspace {
+                        w: wm.sw,
+                        h: wm.sh,
+                        ..ws
+                    },
+                    wm.bh,
+                )
+            })
+            .collect(),
         selwsindex: 0,
         ..wm
     }
@@ -134,19 +193,30 @@ pub fn createWorkspaces(wm: WM) -> WM {
 // }
 
 fn updatenumlockmask(wm: WM) -> WM {
-    let modmap = unsafe { (*xlib::XGetModifierMapping(wm.drw.dpy)) };
-    let modifiermap = unsafe { Vec::from_raw_parts(modmap.modifiermap, 8 * modmap.max_keypermod as usize, 8 * modmap.max_keypermod as usize) };
+    let modmap = unsafe { *xlib::XGetModifierMapping(wm.drw.dpy) };
+    let modifiermap = unsafe {
+        Vec::from_raw_parts(
+            modmap.modifiermap,
+            8 * modmap.max_keypermod as usize,
+            8 * modmap.max_keypermod as usize,
+        )
+    };
     for i in 0..8 {
         for j in 0..modmap.max_keypermod {
-            if modifiermap[(i * modmap.max_keypermod + j) as usize] == unsafe { xlib::XKeysymToKeycode(wm.drw.dpy, keysym::XK_Num_Lock as u64) } {
+            if modifiermap[(i * modmap.max_keypermod + j) as usize]
+                == unsafe { xlib::XKeysymToKeycode(wm.drw.dpy, keysym::XK_Num_Lock as u64) }
+            {
                 return WM {
                     numlockmask: 1 << i,
                     ..wm
-                }
+                };
             }
         }
     }
-    WM { numlockmask:0, ..wm}
+    WM {
+        numlockmask: 0,
+        ..wm
+    }
     // unsafe { xlib::XFreeModifiermap(&mut modmap); } TODO Causes a crash for some reason
 }
 
@@ -155,14 +225,29 @@ fn updatenumlockmask(wm: WM) -> WM {
  */
 pub fn grabKeys(wm: WM) -> WM {
     let wm = updatenumlockmask(wm);
-    let modifiers = vec![0, xlib::LockMask, wm.numlockmask, wm.numlockmask|xlib::LockMask];
+    let modifiers = vec![
+        0,
+        xlib::LockMask,
+        wm.numlockmask,
+        wm.numlockmask | xlib::LockMask,
+    ];
 
     unsafe { xlib::XUngrabKey(wm.drw.dpy, xlib::AnyKey, xlib::AnyModifier, wm.root) };
     for i in 0..config::keys.len() {
         let code = unsafe { xlib::XKeysymToKeycode(wm.drw.dpy, config::keys[i].keysym) };
         if code != 0 {
             for j in 0..modifiers.len() {
-                unsafe { xlib::XGrabKey(wm.drw.dpy, code as i32, config::keys[i].modif | modifiers[j], wm.root, 1, xlib::GrabModeAsync, xlib::GrabModeAsync) };
+                unsafe {
+                    xlib::XGrabKey(
+                        wm.drw.dpy,
+                        code as i32,
+                        config::keys[i].modif | modifiers[j],
+                        wm.root,
+                        1,
+                        xlib::GrabModeAsync,
+                        xlib::GrabModeAsync,
+                    )
+                };
             }
         }
     }
@@ -184,40 +269,63 @@ pub fn updateBars(mut wm: WM) -> WM {
         backing_planes: u64::max_value(),
         backing_pixel: 0,
         save_under: 0,
-        event_mask: xlib::ButtonPressMask|xlib::ExposureMask,
+        event_mask: xlib::ButtonPressMask | xlib::ExposureMask,
         do_not_propagate_mask: 0,
         override_redirect: 1,
         colormap: xlib::CopyFromParent as u64,
-        cursor: 0
+        cursor: 0,
     };
     if wm.wss[0].barwin == 0 {
         let barwin = unsafe {
-            xlib::XCreateWindow(wm.drw.dpy,
-                                wm.root,
-                                wm.wss[0].x, wm.wss[0].by, wm.wss[0].w as u32,
-                                wm.bh,
-                                0,
-                                xlib::XDefaultDepth(wm.drw.dpy, wm.screen),
-                                xlib::CopyFromParent as u32,
-                                xlib::XDefaultVisual(wm.drw.dpy, wm.screen),
-                                xlib::CWOverrideRedirect|xlib::CWBackPixmap|xlib::CWEventMask,
-                                &mut wa) };
+            xlib::XCreateWindow(
+                wm.drw.dpy,
+                wm.root,
+                wm.wss[0].x,
+                wm.wss[0].by,
+                wm.wss[0].w as u32,
+                wm.bh,
+                0,
+                xlib::XDefaultDepth(wm.drw.dpy, wm.screen),
+                xlib::CopyFromParent as u32,
+                xlib::XDefaultVisual(wm.drw.dpy, wm.screen),
+                xlib::CWOverrideRedirect | xlib::CWBackPixmap | xlib::CWEventMask,
+                &mut wa,
+            )
+        };
         unsafe { xlib::XDefineCursor(wm.drw.dpy, barwin, wm.cursor[CURNORMAL].cursor) };
         unsafe { xlib::XMapRaised(wm.drw.dpy, barwin) };
         for ws in wm.wss.iter_mut() {
-            if ws.barwin == 0 { ws.barwin = barwin };
+            if ws.barwin == 0 {
+                ws.barwin = barwin
+            };
         }
     }
     wm
 }
 
 fn getTextProp(dpy: &mut xlib::Display, w: xlib::Window, atom: xlib::Atom) -> Option<String> {
-    let mut name = xlib::XTextProperty { // Dummy value
-        value: (CString::new("").unwrap().into_bytes().as_mut_ptr()), encoding: 0, format: 8, nitems: 0
+    let mut name = xlib::XTextProperty {
+        // Dummy value
+        value: (CString::new("").unwrap().into_bytes().as_mut_ptr()),
+        encoding: 0,
+        format: 8,
+        nitems: 0,
     };
     unsafe { xlib::XGetTextProperty(dpy, w, &mut name, atom) };
-    let text = unsafe { CString::from_vec_unchecked(Vec::from_raw_parts(name.value, name.nitems as usize, name.nitems as usize))}.into_string().unwrap();
-    if text == "" { None } else { Some(text) }
+    let text = unsafe {
+        CString::from_vec_unchecked(Vec::from_raw_parts(
+            name.value,
+            name.nitems as usize,
+            name.nitems as usize,
+        ))
+    }
+    .into_string()
+    .unwrap();
+    if text == "" {
+        None
+    } else {
+        Some(text)
+    }
 }
 
 /**
@@ -225,10 +333,24 @@ fn getTextProp(dpy: &mut xlib::Display, w: xlib::Window, atom: xlib::Atom) -> Op
  */
 pub fn updateStatus(wm: WM) -> WM {
     let wm = WM {
-        stext: if let Some(text) = getTextProp(wm.drw.dpy, wm.root, xlib::XA_WM_NAME) { text } else { wm.stext },
+        stext: if let Some(text) = getTextProp(wm.drw.dpy, wm.root, xlib::XA_WM_NAME) {
+            text
+        } else {
+            wm.stext
+        },
         ..wm
     };
-    WM {drw: workspace::drawBar(wm.drw, wm.bh, &wm.scheme, &wm.wss, wm.selwsindex, &wm.stext[..]), ..wm}
+    WM {
+        drw: workspace::drawBar(
+            wm.drw,
+            wm.bh,
+            &wm.scheme,
+            &wm.wss,
+            wm.selwsindex,
+            &wm.stext[..],
+        ),
+        ..wm
+    }
 }
 
 /**
@@ -294,12 +416,14 @@ pub fn manage<'a>(mut wm: WM<'a>, w: xlib::Window, wa: xlib::XWindowAttributes) 
  */
 pub fn unManage<'a>(wm: WM<'a>, w: xlib::Window) -> WM<'a> {
     let mut wm = WM {
-        wss : wm.wss.into_iter().map(|ws| {
-            Workspace {
-                clients: ws.clients.into_iter().filter(|c| { c.win != w } ).collect(),
+        wss: wm
+            .wss
+            .into_iter()
+            .map(|ws| Workspace {
+                clients: ws.clients.into_iter().filter(|c| c.win != w).collect(),
                 ..ws
-            }
-        }).collect(),
+            })
+            .collect(),
         ..wm
     };
     let ws = workspace::updateGeom(wm.wss.remove(wm.selwsindex), wm.drw.dpy);
@@ -318,6 +442,18 @@ pub fn findPointedWindow<'a>(wm: WM<'a>) -> (WM<'a>, xlib::Window) {
     let win_x_return: &mut i32 = &mut 0;
     let win_y_return: &mut i32 = &mut 0;
     let mask_return: &mut u32 = &mut 0;
-    unsafe { xlib::XQueryPointer(wm.drw.dpy, wm.root, root_return, child_return, root_x_return, root_y_return, win_x_return, win_y_return, mask_return) };
+    unsafe {
+        xlib::XQueryPointer(
+            wm.drw.dpy,
+            wm.root,
+            root_return,
+            child_return,
+            root_x_return,
+            root_y_return,
+            win_x_return,
+            win_y_return,
+            mask_return,
+        )
+    };
     (wm, *child_return)
 }
